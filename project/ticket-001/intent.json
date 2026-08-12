@@ -19,5 +19,65 @@
   "stacks": ["docker"],
   "dependsOn": [],
   "conflictsWith": [],
-  "integrationTicket": null
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "c142c3b3c8a2eda3a3bf3a8e7cb711cf4bdc8629",
+    "targetBranch": "main",
+    "outcome": "A standalone, machine-constrained Git lifecycle standard including a safe autonomous seed-baseline transaction",
+    "nonGoals": [
+      "Do not execute arbitrary shell or Git arguments",
+      "Do not carry credentials, filesystem paths or remote URLs",
+      "Do not push directly to the default branch, merge, tag or release",
+      "Do not define ticket meaning or product implementation"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 30,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Represent repository mutation as a closed state machine whose request AST contains only enums and opaque references; resolve all concrete Git effects in a trusted controller",
+      "components": [
+        {
+          "name": "normative-contract",
+          "paths": [
+            "standard/git-lifecycle.schema.json",
+            "standard/git-lifecycle.v1.gbnf"
+          ]
+        },
+        {
+          "name": "conformance-and-guidance",
+          "paths": [
+            "standard/conformance.py",
+            "docs/ARCHITECTURE.md",
+            "docs/LOGIC_FLOW.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [
+        "Introduce transition-request, lifecycle-state and transition-receipt variants"
+      ],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Remove the five ticket-owned implementation files while preserving the governed baseline and evidence"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-05",
+        "commands": ["python3 standard/conformance.py --all", "docker compose run --rm conformance"],
+        "evidence": "project/ticket-001/ai-codex-logs.txt"
+      },
+      {
+        "criterion": "AC-06",
+        "commands": ["./project/governance-check.sh --actor agent", "git diff --check"],
+        "evidence": "project/ticket-001/ai-codex-logs.txt"
+      }
+    ]
+  }
 }
