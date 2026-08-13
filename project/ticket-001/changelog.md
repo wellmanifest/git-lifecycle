@@ -12,3 +12,8 @@
 - Recorded the later explicit authority for public remote creation,
   ticket-branch push and pull-request creation; direct-main, merge, tag and
   release effects remain excluded.
+
+## 2026-08-13 publication
+
+- Closed after `ifuri-validator-agent` approved and merged pull request #1 at
+  `3b96160481bda4486ebb94c95aaf6a84d3db47f4`.
