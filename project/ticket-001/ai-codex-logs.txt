@@ -1,2 +1,19 @@
 2026-08-12 ADOPTION source=wellmanifest/new-project revision=6800f0138bc9063eb2dacb0a8b797dedcafb7952 version=0.16.0 publication=verified
 2026-08-12 V0161_PREFLIGHT result=rejected reason=no_verifiable_final_GitHub_Release
+2026-08-12 SEED preconditions=PASS secret_scan=PASS exact_allowlist=PASS implementation_paths=0 remote_count=0
+2026-08-12 BASELINE sha=c142c3b3c8a2eda3a3bf3a8e7cb711cf4bdc8629 effect=one_local_commit push=false publication=false
+2026-08-12 GOVERNANCE initial=GOV-BUDGET-001,GOV-DELIVERY-001 remediation=classify_experimental_document_family_as_data_not_public_interface final=PASS errors=0 warnings=0
+2026-08-12 VALIDATION draft202012=PASS positive=3 adversarial_rejected=8 host=PASS docker=PASS diff_check=PASS
+2026-08-12 DIGEST schema=sha256:6c005cd86cfebcd2414ed7587faa047ee92f6bee29ba9a4ab9f88de74576f54d grammar=sha256:0cc78ea824285d1da5cd30f8624e53bdfa0291a2052c3d108f473071c770856c
+2026-08-12 V0161_RELEASE status=published upgrade_plan=4_managed_files deferred_to_governance_ticket implementation_blocked=false
+2026-08-12 publication revalidation
+python3 standard/conformance.py --all
+ok=true positiveDocuments=3 adversarialRejected=8
+schemaDigest=sha256:6c005cd86cfebcd2414ed7587faa047ee92f6bee29ba9a4ab9f88de74576f54d
+grammarDigest=sha256:0cc78ea824285d1da5cd30f8624e53bdfa0291a2052c3d108f473071c770856c
+docker compose run --rm conformance
+ok=true positiveDocuments=3 adversarialRejected=8
+./project/governance-check.sh --actor agent
+GOV-PASS: passed (0 errors, 0 warnings)
+git diff --check
+exit=0
