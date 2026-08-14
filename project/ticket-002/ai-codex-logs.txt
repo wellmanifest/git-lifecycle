@@ -21,3 +21,9 @@
 - networkless pinned Docker build/run: PASS.
 - `./project/governance-check.sh`: GOV-PASS, 0 errors, 0 warnings.
 - `git diff --check`: PASS.
+
+2026-08-14T09:32:00+02:00 PUBLICATION
+- pull request: https://github.com/wellmanifest/git-lifecycle/pull/2
+- implementation commit: a47e0ff46dacc9f4e63a9242c7737164b7106119
+- accepted base: d37ea401e7a168363a483a4433f3846004fce572
+- trusted current-head review and integration: pending
