@@ -77,7 +77,6 @@
     "project/ticket-004/**",
     "TODO.md",
     "project/TICKETS.md",
-    "CHANGELOG.md",
     "docs/REPO_HYGIENE.md",
     "standard/repo-hygiene.schema.json",
     "standard/repo_hygiene.py",

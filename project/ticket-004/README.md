@@ -16,10 +16,10 @@ merge or delete.
 
 ## Acceptance criteria
 
-- [ ] AC-01: `python3 standard/repo_hygiene.py --all` proves clean (no emit),
+- [x] AC-01: `python3 standard/repo_hygiene.py --all` proves clean (no emit),
   fresh PR (no emit), stale PR ≥2h (emit) and stale extra branch ≥2h (emit).
-- [ ] AC-02: Existing Lifecycle DSL conformance still passes.
-- [ ] AC-03: Governance and diff hygiene pass against `c01a822`.
+- [x] AC-02: Existing Lifecycle DSL conformance still passes.
+- [x] AC-03: Governance and diff hygiene pass against `c01a822`.
 
 ## Authorization
 
