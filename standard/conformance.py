@@ -195,7 +195,18 @@ def run_all() -> dict[str, object]:
         expect_rejected("seed-push", validate_seed_receipt, receipt, lambda d: d.update(pushPerformed=True)),
         expect_rejected("seed-publication", validate_seed_receipt, receipt, lambda d: d.update(publicationPerformed=True)),
     ]
-    return {"schema": "wellmanifest.git-lifecycle-conformance/v1", "ok": True, "positiveDocuments": 3, "adversarialRejected": rejected, "schemaDigest": "sha256:" + SCHEMA_DIGEST, "grammarDigest": "sha256:" + GRAMMAR_DIGEST}
+    import repo_hygiene
+
+    hygiene = repo_hygiene.self_test()
+    return {
+        "schema": "wellmanifest.git-lifecycle-conformance/v1",
+        "ok": True,
+        "positiveDocuments": 3,
+        "adversarialRejected": rejected,
+        "schemaDigest": "sha256:" + SCHEMA_DIGEST,
+        "grammarDigest": "sha256:" + GRAMMAR_DIGEST,
+        "repoHygiene": hygiene,
+    }
 
 
 def main() -> int:
