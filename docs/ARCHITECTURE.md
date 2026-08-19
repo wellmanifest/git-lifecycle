@@ -128,6 +128,12 @@ controller returns a rejected receipt and preserves the working tree.
   owns the branch's write scope.
 - `local-commit` requires explicit user commit authority, except for the one
   seed transaction above. Staging is exact and foreign changes are preserved.
+  When `git worktree list` shows two or more checkouts of this repository
+  identity, the adopted worktree overlap guard
+  (`worktree-guard.yaml` / `worktree_overlap_check.py` from
+  `wellmanifest/new-project`) must report no undeclared path overlap before
+  the commit is authorized. Parallel worktrees are allowed; overlapping dirty
+  or unmerged paths are not. See [WORKTREE_GUARD.md](WORKTREE_GUARD.md).
 - `open-pr` requires a committed ticket branch and governed delivery tooling.
 - `integrate` requires exact-head trusted approval and required checks.
 - `release` originates only from a clean, retested integrated default branch.
