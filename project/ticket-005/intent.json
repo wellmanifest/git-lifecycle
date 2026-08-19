@@ -1,0 +1,77 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-005",
+  "summary": "Worktree overlap guard before local-commit",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "docs/ARCHITECTURE.md",
+    "docs/WORKTREE_GUARD.md",
+    "project/ticket-005/**",
+    "TODO.md",
+    "project/TICKETS.md"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md",
+    "standard/git-lifecycle.schema.json",
+    "standard/conformance.py"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "c01a82287094260d8fcf4ecd76afde25de25a999",
+    "targetBranch": "main",
+    "outcome": "git-lifecycle documents that local-commit/integrate require the adopted worktree overlap guard to be clean",
+    "nonGoals": [
+      "No schema or digest change",
+      "No new daemon",
+      "No rewrite of conformance.py"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 15,
+    "budgets": {
+      "maxImplementationFiles": 3,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Document the proactive overlap precondition on local-commit/integrate and point at new-project's worktree-guard.yaml. Do not change the v1 schema.",
+      "components": [
+        {
+          "name": "docs",
+          "paths": [
+            "docs/ARCHITECTURE.md",
+            "docs/WORKTREE_GUARD.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert the two documentation files"
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "grep -n worktree-guard docs/ARCHITECTURE.md"
+        ],
+        "evidence": "local-commit section names the adopted guard"
+      }
+    ]
+  }
+}
