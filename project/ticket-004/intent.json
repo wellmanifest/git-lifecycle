@@ -1,0 +1,90 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-004",
+  "summary": "Define one-main zero-PR repo hygiene invariant",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "delivery": {
+    "acceptedBaseSha": "c01a82287094260d8fcf4ecd76afde25de25a999",
+    "targetBranch": "main",
+    "outcome": "The Git lifecycle pack publishes a closed one_main_zero_pr observation contract with a 2h stale window that doctor-agent can consume without merging or deleting branches.",
+    "nonGoals": [
+      "Scan GitHub organizations from this repository",
+      "Merge, close pull requests, delete branches or force-push",
+      "Open a GitHub pull request from this ticket",
+      "Change the Git mutation state machine or Lifecycle DSL graph",
+      "Add runtime dependencies or credentials"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add an observation schema and dependency-free evaluator beside the existing mutation contract. Verdicts are healthy, in_progress or stale. Stale findings are data for doctor-agent; this pack never performs GitHub effects.",
+      "components": [
+        {
+          "name": "repo-hygiene-contract",
+          "paths": [
+            "standard/repo-hygiene.schema.json",
+            "standard/repo_hygiene.py",
+            "docs/REPO_HYGIENE.md"
+          ]
+        },
+        {
+          "name": "domain-conformance",
+          "paths": [
+            "standard/conformance.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [
+        "Introduce repo-hygiene-snapshot documents and stale-window verdicts"
+      ],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Remove the three hygiene files and the conformance hook together."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": ["python3 standard/repo_hygiene.py --all"],
+        "evidence": "project/ticket-004/ai-grok-logs.txt"
+      },
+      {
+        "criterion": "AC-02",
+        "commands": ["python3 standard/conformance.py --all"],
+        "evidence": "project/ticket-004/ai-grok-logs.txt"
+      },
+      {
+        "criterion": "AC-03",
+        "commands": ["./project/governance-check.sh --actor agent", "git diff --check"],
+        "evidence": "project/ticket-004/ai-grok-logs.txt"
+      }
+    ]
+  },
+  "allowedPaths": [
+    "project/ticket-004/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "docs/REPO_HYGIENE.md",
+    "standard/repo-hygiene.schema.json",
+    "standard/repo_hygiene.py",
+    "standard/conformance.py"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null
+}

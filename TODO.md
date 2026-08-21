@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] [ticket-004](project/ticket-004/README.md) — define the
+  `one_main_zero_pr` observation contract with a 2h stale window for
+  doctor-agent.
+
 - [x] [ticket-003](project/ticket-003/README.md) — require the shared Lifecycle
   DSL domain-conformance gate on pull requests and integrated `main` revisions.
 
