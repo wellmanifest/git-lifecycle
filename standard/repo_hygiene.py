@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
@@ -44,7 +44,26 @@ class HygieneFinding:
     severity: str
     message: str
     remediation: str
-    evidence: dict[str, Any]
+    # `message` and `remediation` are constants per code, so two findings of one
+    # code differ only here. Ordering must therefore never reach this field:
+    # comparing two mappings raises, and it raises on exactly the repositories
+    # this document exists to flag — one with several stale pull requests.
+    evidence: dict[str, Any] = field(compare=False)
+
+
+def _sort_key(finding: HygieneFinding) -> tuple[str, str, str, str]:
+    """A total order derived from content, so one snapshot yields one verdict.
+
+    Excluding evidence from comparison is what keeps `sorted` safe; including
+    its canonical form here is what keeps the order deterministic rather than
+    merely insertion-stable.
+    """
+    return (
+        finding.code,
+        finding.severity,
+        finding.message,
+        json.dumps(finding.evidence, sort_keys=True, separators=(",", ":")),
+    )
 
 
 @dataclass(frozen=True)
@@ -225,7 +244,7 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
         repository=repository,
         status=status,
         stale_window_seconds=stale_window,
-        findings=tuple(sorted(findings)),
+        findings=tuple(sorted(findings, key=_sort_key)),
     )
 
 
@@ -314,10 +333,53 @@ def self_test() -> dict[str, Any]:
     ]:
         raise AssertionError("stale extra branch must emit REPO-HYGIENE-STALE-BRANCH")
 
+    # Every case above emits at most one finding, so `sorted` never compares a
+    # pair and a broken order stays invisible. A repository with two stale pull
+    # requests is both the common real shape and the one that exposes it.
+    two_stale_pulls = [
+        {
+            "number": 9,
+            "headRef": "ticket/009-late",
+            "headRepository": "subactor/www-sub-actor",
+            "lastActivityAt": "2026-08-15T15:00:00Z",
+        },
+        {
+            "number": 4,
+            "headRef": "ticket/004-later",
+            "headRepository": "subactor/www-sub-actor",
+            "lastActivityAt": "2026-08-15T14:00:00Z",
+        },
+    ]
+    two_stale_branches = [
+        {"name": "main", "committedAt": "2026-08-15T10:00:00Z"},
+        {"name": "ticket/009-late", "committedAt": "2026-08-15T14:30:00Z"},
+        {"name": "ticket/004-later", "committedAt": "2026-08-15T13:30:00Z"},
+    ]
+    two_stale = evaluate(
+        _snapshot(
+            repository="subactor/www-sub-actor",
+            observed_at=now,
+            pulls=two_stale_pulls,
+            branches=two_stale_branches,
+        )
+    )
+    if [item.code for item in two_stale.findings] != ["REPO-HYGIENE-STALE-PR"] * 2:
+        raise AssertionError("two stale pull requests must emit two findings")
+    reversed_input = evaluate(
+        _snapshot(
+            repository="subactor/www-sub-actor",
+            observed_at=now,
+            pulls=list(reversed(two_stale_pulls)),
+            branches=list(reversed(two_stale_branches)),
+        )
+    )
+    if reversed_input.as_dict() != two_stale.as_dict():
+        raise AssertionError("one snapshot must yield one verdict regardless of input order")
+
     return {
         "schema": "wellmanifest.git-lifecycle/repo-hygiene-conformance/v1",
         "ok": True,
-        "cases": ["clean", "fresh-pr", "stale-pr", "stale-branch"],
+        "cases": ["clean", "fresh-pr", "stale-pr", "stale-branch", "two-stale-prs"],
     }
 
 
