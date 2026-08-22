@@ -40,5 +40,7 @@ will implement it in a small Subactor runtime component.
 
 ## Blockers
 
-- None inside the standard change. Runtime publication remains separately
-  authority-bound.
+- None for the standard change. Validator approved the exact implementation
+  head and merged PR #9 as main SHA
+  `72ade3b6c7ad68f617a50871a1f7466e7a868ab9`. Runtime publication remains
+  separately authority-bound.

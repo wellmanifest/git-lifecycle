@@ -2,8 +2,8 @@
 
 - **ID**: ticket-006
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
-- **Workflow state**: PUBLICATION
+- **Status**: DONE
+- **Workflow state**: DONE
 - **Created**: 2026-08-22
 
 ## Goal and scope
@@ -43,3 +43,12 @@ push an initial ref to another repository.
 
 - Human participant: unresolved; no user-* file was created by this script.
 - Agent participant: [ai-codex.md](ai-codex.md)
+
+## Closure evidence
+
+- Implementation PR: `wellmanifest/git-lifecycle#9`.
+- Integrated main SHA: `72ade3b6c7ad68f617a50871a1f7466e7a868ab9`.
+- Exact implementation head: `f53a446acb81c7fd4a32d3aa4d9dffe39c0e7fec`.
+- Trusted Validator review: `5001042582`.
+- Validator run: `subactor/validator-agent#32598215420`.
+- Planfile receipt: `PLF-7373`, status `done`.

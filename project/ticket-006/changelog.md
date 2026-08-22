@@ -8,3 +8,5 @@
   single-use grant.
 - Made publication non-terminal until independent exact-head validation and
   defined quarantine without automatic ref deletion as the failure posture.
+- Closed after exact-head Validator review `5001042582` and protected merge
+  `72ade3b6c7ad68f617a50871a1f7466e7a868ab9`.
