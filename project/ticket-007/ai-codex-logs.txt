@@ -1,0 +1,5 @@
+2026-08-22T21:19:00Z ticket-007 validation
+PASS: legacy lifecycle conformance, 3 positive documents and 8 adversarial cases
+PASS: initial-ref conformance, accepted and quarantined flows and 10 adversarial cases
+GOV-PASS: passed (0 errors, 0 warnings)
+PASS: git diff --check
