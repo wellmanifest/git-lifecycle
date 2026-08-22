@@ -14,5 +14,5 @@
 - [x] Obtain trusted exact-head review and merge through the authorized pull
   request lifecycle. `ifuri-validator-agent` approved and merged
   `3b96160481bda4486ebb94c95aaf6a84d3db47f4`.
-- [ ] [ticket-006](project/ticket-006/README.md) — define the separately
+- [x] [ticket-006](project/ticket-006/README.md) — define the separately
   authorized and independently validated remote initial-ref lifecycle.
