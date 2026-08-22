@@ -22,3 +22,5 @@ jobs:
           python-version: '3.12'
       - name: Validate Lifecycle DSL profile and domain equality
         run: python3 standard/conformance.py --all
+      - name: Validate initial-ref publication lifecycle
+        run: python3 standard/initial_ref_conformance.py --all

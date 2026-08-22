@@ -16,3 +16,5 @@
   `3b96160481bda4486ebb94c95aaf6a84d3db47f4`.
 - [x] [ticket-006](project/ticket-006/README.md) — define the separately
   authorized and independently validated remote initial-ref lifecycle.
+- [ ] [ticket-007](project/ticket-007/README.md) — execute initial-ref
+  conformance in the stable hosted lifecycle check.
