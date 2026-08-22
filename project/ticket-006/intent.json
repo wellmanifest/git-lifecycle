@@ -1,0 +1,85 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-006",
+  "summary": "Define remote initial-ref publication lifecycle",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-006/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "VERSION",
+    "docs/ARCHITECTURE.md",
+    "standard/repository-initial-ref.schema.json",
+    "standard/repository-initial-ref.lifecycle",
+    "standard/initial_ref_conformance.py"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "b2abf5f6322ee5d821b3d493aedfd994bb1f5fcc",
+    "targetBranch": "main",
+    "outcome": "A standalone lifecycle contract makes one initial remote ref publishable only from exact, separately authorized and independently validated evidence.",
+    "nonGoals": [
+      "Execute Git or call a repository provider",
+      "Issue authority or inherit repository-bootstrap authority",
+      "Carry commands, remote URLs, credentials or secret material",
+      "Change the existing local git-lifecycle/v1 state graph",
+      "Automatically delete or force-update a published ref"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add a complementary repository-initial-ref/v1 schema and Lifecycle DSL profile. Keep runtime publication in a future Subactor adopter and leave local seed-baseline unchanged.",
+      "components": [
+        {
+          "name": "initial-ref-contract",
+          "paths": [
+            "standard/repository-initial-ref.schema.json",
+            "standard/repository-initial-ref.lifecycle",
+            "standard/initial_ref_conformance.py"
+          ]
+        },
+        {
+          "name": "composition-guidance",
+          "paths": ["docs/ARCHITECTURE.md", "VERSION"]
+        }
+      ],
+      "responsibilityChanges": true,
+      "interfaceChanges": [],
+      "dataChanges": [
+        "Add exact plan/grant/publication/validation bindings for one first-ref transition"
+      ],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Remove the additive v1 initial-ref files and documentation; existing git-lifecycle/v1 adopters remain unchanged."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-05",
+        "commands": [
+          "python3 standard/conformance.py --all",
+          "python3 standard/initial_ref_conformance.py --all",
+          "python3 standard/lifecycle.py validate standard/repository-initial-ref.lifecycle",
+          "./project/governance-check.sh --actor agent",
+          "git diff --check"
+        ],
+        "evidence": "project/ticket-006/ai-codex-logs.txt"
+      }
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+2026-08-22T20:52:00+02:00 ticket-006 validation
+PASS json-schema fixtures=4
+PASS repository-initial-ref conformance positive=2 adversarial-rejected=10
+PASS Lifecycle DSL repository-initial-ref v1 states=4 transitions=3
+PASS existing git-lifecycle/v1 conformance adversarial-rejected=8
+GOV-PASS: passed (0 errors, 0 warnings)
+PASS git diff --check
