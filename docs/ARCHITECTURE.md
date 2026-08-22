@@ -24,6 +24,30 @@ receipts used by validation and closure. The adopted
 change increments this document's declared version; incompatible request
 semantics use a new schema family rather than silently changing `/v1`.
 
+## Remote initial-ref composition
+
+Local history creation and remote publication are separate transitions. The
+existing `seed-baseline` action owns exactly one local governance commit and
+still forbids every remote effect. The complementary
+`wellmanifest.repository-initial-ref/v1` family in
+[`repository-initial-ref.schema.json`](../standard/repository-initial-ref.schema.json)
+starts only after a provider read-back proves that the target repository
+exists and has no refs.
+
+Its plan binds one exact source commit, canonical tree digest, resolved path
+allowlist, secret-scan evidence, governance evidence and validation profile.
+An external issuer must provide a fresh single-use grant bound to the complete
+plan. A normal first-ref push produces only a non-terminal publication receipt.
+Independent Validator read-back of the exact head and tree is required before
+terminal acceptance.
+
+The contract never carries a command, remote URL, credential or secret. It does
+not inherit authority from repository creation, mirror registration or local
+seed. If post-publication validation fails, the target is quarantined for a new
+explicit recovery decision; automatic ref deletion and force update remain
+forbidden. A Subactor runtime may adopt this contract, but execution does not
+belong in Wellmanifest or in the local Git lifecycle controller.
+
 ## State machine
 
 ```mermaid
