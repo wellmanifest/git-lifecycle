@@ -9,7 +9,7 @@
     "origin": "requested"
   },
   "delivery": {
-    "acceptedBaseSha": "c01a82287094260d8fcf4ecd76afde25de25a999",
+    "acceptedBaseSha": "d5d59378ee01fcb73966597793d59e33526a798f",
     "targetBranch": "main",
     "outcome": "The Git lifecycle pack publishes a closed one_main_zero_pr observation contract with a 2h stale window that doctor-agent can consume without merging or deleting branches.",
     "nonGoals": [
