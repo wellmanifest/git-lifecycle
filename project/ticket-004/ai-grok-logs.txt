@@ -1,0 +1,23 @@
+# Ticket 004 logs — grok
+
+Observed at 2026-08-15T18:40:00Z from
+/home/tom/github/wellmanifest/.worktrees/ticket-004-repo-hygiene
+HEAD base c01a82287094260d8fcf4ecd76afde25de25a999.
+
+```text
+$ python3 standard/repo_hygiene.py --all
+{
+  "cases": ["clean", "fresh-pr", "stale-pr", "stale-branch"],
+  "ok": true,
+  "schema": "wellmanifest.git-lifecycle/repo-hygiene-conformance/v1"
+}
+
+$ python3 standard/conformance.py --all
+ok=true including repoHygiene.self_test
+
+$ git diff --check
+(no output)
+```
+
+Runtime proof lives in subactor/doctor-agent tests/test_repo_hygiene.py
+(clean / fresh PR / stale PR / stale extra branch / GitHub App 404).
