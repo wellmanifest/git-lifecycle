@@ -16,9 +16,9 @@
     "targetBranch": "main",
     "outcome": "Make repository hygiene deterministic without conflating Git identity, worktree placement and merge disposition.",
     "nonGoals": ["Delete worktrees", "Discard unique commits", "Execute merges"],
-    "complexity": "M",
+    "complexity": "S",
     "estimatedMinutes": 20,
-    "budgets": {"maxImplementationFiles": 10, "maxAffectedComponents": 3, "maxPublicInterfaceChanges": 2, "maxRuntimeDependencies": 0},
+    "budgets": {"maxImplementationFiles": 5, "maxAffectedComponents": 2, "maxPublicInterfaceChanges": 1, "maxRuntimeDependencies": 0},
     "architecture": {
       "status": "accepted",
       "decision": "Use Git lifecycle as the repository identity owner and delegate physical worktrees and divergent content decisions.",
