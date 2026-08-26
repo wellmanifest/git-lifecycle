@@ -1,0 +1,35 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-008",
+  "summary": "Codify repository hygiene handoffs",
+  "workstream": "integration",
+  "classification": {"kind": "FEATURE", "priority": "P1", "origin": "requested"},
+  "allowedPaths": ["project/ticket-008/**", "project/ticket-004/README.md", "TODO.md", "project/TICKETS.md", "docs/REPO_HYGIENE.md"],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "placement": {"home": "wellmanifest", "shape": "domain_pack", "adopt": []},
+  "delivery": {
+    "acceptedBaseSha": "4501160aac662716dfd466d87bc60cdc6472d389",
+    "targetBranch": "main",
+    "outcome": "Make repository hygiene deterministic without conflating Git identity, worktree placement and merge disposition.",
+    "nonGoals": ["Delete worktrees", "Discard unique commits", "Execute merges"],
+    "complexity": "M",
+    "estimatedMinutes": 20,
+    "budgets": {"maxImplementationFiles": 10, "maxAffectedComponents": 3, "maxPublicInterfaceChanges": 2, "maxRuntimeDependencies": 0},
+    "architecture": {
+      "status": "accepted",
+      "decision": "Use Git lifecycle as the repository identity owner and delegate physical worktrees and divergent content decisions.",
+      "components": [{"name": "hygiene-contract", "paths": ["docs/REPO_HYGIENE.md"]}, {"name": "delivery-record", "paths": ["project/ticket-008/**", "project/ticket-004/README.md"]}],
+      "responsibilityChanges": true,
+      "interfaceChanges": ["Repository hygiene handoff sequence"],
+      "dataChanges": [],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Revert before release; no repository data is removed automatically."
+    },
+    "runtimeDependencies": [],
+    "validation": [{"criterion": "AC-01", "commands": ["./project/governance-check.sh --actor agent", "git diff --check"], "evidence": "Repository gates pass before protected publication."}]
+  }
+}
