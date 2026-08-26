@@ -2,7 +2,10 @@
 
 - **ID**: ticket-004
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
+- **Status**: BLOCKED
+
+Superseded after merged PR #6 by the bounded follow-up in ticket-008; this
+historical ticket no longer owns an active writer lease.
 - **Workflow state**: EDIT
 - **Created**: 2026-08-15
 
