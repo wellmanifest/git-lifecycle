@@ -20,10 +20,6 @@ merge or delete.
   fresh PR (no emit), stale PR ≥2h (emit) and stale extra branch ≥2h (emit).
 - [x] AC-02: Existing Lifecycle DSL conformance still passes.
 - [x] AC-03: Governance and diff hygiene pass against `c01a822`.
-- [ ] AC-04: The pack documents the fast ticket-to-PR lifecycle and delegates
-  physical worktree placement and divergent-work disposition to their owners.
-- [ ] AC-05: `wellmanifest/git` is documented only as an alias, preventing a
-  duplicate standard repository.
 
 ## Authorization
 
@@ -34,4 +30,4 @@ request, merge, force-push or branch deletion.
 ## Participants
 
 - Human participant: unresolved; no user-* file was created by this script.
-- Agent participants: [ai-grok.md](ai-grok.md), [ai-codex.md](ai-codex.md)
+- Agent participant: [ai-grok.md](ai-grok.md)
