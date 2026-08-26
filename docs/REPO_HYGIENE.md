@@ -75,3 +75,21 @@ python3 standard/repo_hygiene.py --snapshot path.json
 ```
 
 The evaluator is dependency-free and performs no network I/O.
+
+## Operational sequence
+
+The observation contract is consumed in this order:
+
+1. verify repository identity, `origin` and default branch;
+2. correlate every non-default branch with its ticket and pull request;
+3. treat activity inside the stale window as in progress;
+4. freeze an exact HEAD before trusted validation;
+5. accept merge state only from a receipt bound to repository, pull request,
+   head SHA, ticket and actor;
+6. delete the merged remote ticket branch when repository policy permits;
+7. delegate local checkout cleanup to `wellmanifest/worktrees`.
+
+Missing origin, an unbound branch, a closed-unmerged pull request or unique
+local commits are explicit findings. They are not repaired by guessing,
+force-pushing or deleting the workspace. `wellmanifest/merge` first assigns an
+evidence-backed disposition such as adopt, rebuild, superseded or defer.
