@@ -2,7 +2,7 @@
 
 - **ID**: ticket-008
 - **Owner**: unresolved:human
-- **Status**: IN_PROGRESS
+- **Status**: BLOCKED
 - **Workflow state**: EDIT
 - **Created**: 2026-08-26
 

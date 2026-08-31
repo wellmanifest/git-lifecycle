@@ -10,7 +10,6 @@
   "dependsOn": [],
   "conflictsWith": [],
   "integrationTicket": null,
-  "placement": {"home": "wellmanifest", "shape": "domain_pack", "adopt": []},
   "delivery": {
     "acceptedBaseSha": "4501160aac662716dfd466d87bc60cdc6472d389",
     "targetBranch": "main",

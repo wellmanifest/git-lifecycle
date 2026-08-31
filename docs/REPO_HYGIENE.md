@@ -93,3 +93,22 @@ Missing origin, an unbound branch, a closed-unmerged pull request or unique
 local commits are explicit findings. They are not repaired by guessing,
 force-pushing or deleting the workspace. `wellmanifest/merge` first assigns an
 evidence-backed disposition such as adopt, rebuild, superseded or defer.
+
+## Complex-change delivery profile
+
+For changes spanning multiple components or shared/generated files:
+
+1. allocate one ticket and atomically reserve its `allowedPaths`;
+2. use one writer branch/worktree; competing tickets become `BLOCKED` or
+   declare an explicit `conflictsWith` relationship;
+3. enqueue the exact head SHA and rebase onto current `main` before checks;
+4. on `STALE_HEAD_CHANGED`, release the lease, rebase from a fresh head and
+   rerun all gates — never force-push over another writer;
+5. merge only after trusted Validator approval and an external receipt binding
+   repository, PR, ticket, head SHA and merge SHA;
+6. deploy the integrated head, run a bounded canary/readback, then release the
+   lease and clean the worktree.
+
+The queue exposes `LEASED`, `VALIDATING`, `STALE_REBASE`, `APPROVED`,
+`MERGED`, `CANARY_FAILED` and `RELEASED`. A failed canary leaves an evidence
+receipt and rolls back to the last integrated head; retries are bounded.
