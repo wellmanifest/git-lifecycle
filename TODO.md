@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] [ticket-010](project/ticket-010/README.md) — define the durable Git
+  checkpoint boundary for clean commits and protected dirty-work snapshots.
+
 - [ ] [ticket-004](project/ticket-004/README.md) — define the
   `one_main_zero_pr` observation contract with a 2h stale window for
   doctor-agent.

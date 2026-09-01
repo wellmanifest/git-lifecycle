@@ -1,0 +1,78 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-010",
+  "summary": "Define durable Git continuity boundary",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-010/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "docs/WORK_CONTINUITY.md",
+    "standard/git-lifecycle.schema.json",
+    "standard/git-lifecycle.v1.gbnf",
+    "standard/git-lifecycle.lifecycle",
+    "standard/conformance.py"
+  ],
+  "forbiddenPaths": ["project/ticket-*/user-*.md"],
+  "stacks": [],
+  "dependsOn": ["ticket-011"],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "a6046717836fdbfbcd9c2dfd00c063e1153ec122",
+    "targetBranch": "main",
+    "outcome": "Make Git work durable across memory and process boundaries without turning checkpoints into Git authority.",
+    "nonGoals": [
+      "Do not embed source diffs, stash contents, local paths or credentials in lifecycle documents",
+      "Do not restore or overwrite a divergent workspace automatically",
+      "Do not implement the external snapshot service in wellmanifest"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Add a no-ref-movement checkpoint transition whose receipt binds an external continuity document; safe work content remains in an authorized commit or protected snapshot.",
+      "components": [
+        {
+          "name": "git-lifecycle-contract",
+          "paths": [
+            "standard/git-lifecycle.schema.json",
+            "standard/git-lifecycle.v1.gbnf",
+            "standard/git-lifecycle.lifecycle"
+          ]
+        },
+        {
+          "name": "guidance-and-conformance",
+          "paths": ["docs/WORK_CONTINUITY.md", "standard/conformance.py"]
+        }
+      ],
+      "responsibilityChanges": true,
+      "interfaceChanges": ["checkpoint same-state transition"],
+      "dataChanges": ["Checkpoint receipt binds exact HEAD and one continuity receipt"],
+      "ui": {"impact": "none", "states": [], "evidence": []},
+      "rollback": "Revert checkpoint schema, grammar, Lifecycle projection, conformance and documentation together."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-04",
+        "commands": [
+          "PYTHONDONTWRITEBYTECODE=1 python3 standard/conformance.py --all",
+          "./project/governance-check.sh --actor agent"
+        ],
+        "evidence": "Positive clean checkpoint plus adversarial state-move, push, publication and duplicate-ref cases."
+      }
+    ]
+  }
+}

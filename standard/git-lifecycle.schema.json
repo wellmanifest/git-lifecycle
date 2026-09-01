@@ -60,6 +60,7 @@
         "open-pr",
         "integrate",
         "release",
+        "checkpoint",
         "cleanup"
       ]
     },
@@ -109,6 +110,54 @@
           "properties": {
             "action": { "const": "release" },
             "expectedState": { "const": "integrated" },
+            "targetState": { "const": "released" }
+          },
+          "required": ["action", "expectedState", "targetState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "expectedState": { "const": "seeded" },
+            "targetState": { "const": "seeded" }
+          },
+          "required": ["action", "expectedState", "targetState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "expectedState": { "const": "ticket-ready" },
+            "targetState": { "const": "ticket-ready" }
+          },
+          "required": ["action", "expectedState", "targetState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "expectedState": { "const": "implementation-local" },
+            "targetState": { "const": "implementation-local" }
+          },
+          "required": ["action", "expectedState", "targetState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "expectedState": { "const": "review-open" },
+            "targetState": { "const": "review-open" }
+          },
+          "required": ["action", "expectedState", "targetState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "expectedState": { "const": "integrated" },
+            "targetState": { "const": "integrated" }
+          },
+          "required": ["action", "expectedState", "targetState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "expectedState": { "const": "released" },
             "targetState": { "const": "released" }
           },
           "required": ["action", "expectedState", "targetState"]
@@ -175,6 +224,54 @@
         },
         {
           "properties": {
+            "action": { "const": "checkpoint" },
+            "beforeState": { "const": "seeded" },
+            "afterState": { "const": "seeded" }
+          },
+          "required": ["action", "beforeState", "afterState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "beforeState": { "const": "ticket-ready" },
+            "afterState": { "const": "ticket-ready" }
+          },
+          "required": ["action", "beforeState", "afterState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "beforeState": { "const": "implementation-local" },
+            "afterState": { "const": "implementation-local" }
+          },
+          "required": ["action", "beforeState", "afterState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "beforeState": { "const": "review-open" },
+            "afterState": { "const": "review-open" }
+          },
+          "required": ["action", "beforeState", "afterState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "beforeState": { "const": "integrated" },
+            "afterState": { "const": "integrated" }
+          },
+          "required": ["action", "beforeState", "afterState"]
+        },
+        {
+          "properties": {
+            "action": { "const": "checkpoint" },
+            "beforeState": { "const": "released" },
+            "afterState": { "const": "released" }
+          },
+          "required": ["action", "beforeState", "afterState"]
+        },
+        {
+          "properties": {
             "action": { "const": "cleanup" },
             "beforeState": { "enum": ["integrated", "released"] },
             "afterState": { "enum": ["integrated", "released", "terminal"] }
@@ -228,6 +325,24 @@
           },
           "then": { "required": ["seedProfileRef"] },
           "else": { "not": { "required": ["seedProfileRef"] } }
+        },
+        {
+          "if": {
+            "properties": { "action": { "const": "checkpoint" } },
+            "required": ["action"]
+          },
+          "then": {
+            "properties": {
+              "evidenceRefs": {
+                "contains": {
+                  "type": "string",
+                  "pattern": "^receipt:continuity[.][a-z0-9._:-]+$"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            }
+          }
         }
       ]
     },
@@ -385,6 +500,30 @@
               "headSha": { "$ref": "#/$defs/sha" },
               "pushPerformed": { "const": false },
               "publicationPerformed": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": { "const": "checkpoint" },
+              "outcome": { "const": "applied" }
+            },
+            "required": ["action", "outcome"]
+          },
+          "then": {
+            "properties": {
+              "headSha": { "$ref": "#/$defs/sha" },
+              "pushPerformed": { "const": false },
+              "publicationPerformed": { "const": false },
+              "evidenceRefs": {
+                "contains": {
+                  "type": "string",
+                  "pattern": "^receipt:continuity[.][a-z0-9._:-]+$"
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
             }
           }
         }
