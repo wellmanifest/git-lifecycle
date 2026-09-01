@@ -1,4 +1,4 @@
-root ::= seed | ticket-branch | local-commit | open-pr | integrate | release | cleanup
+root ::= seed | ticket-branch | local-commit | open-pr | integrate | release | checkpoint | cleanup
 
 seed ::= prefix "seed-baseline\",\"expectedState\":\"uninitialized\",\"targetState\":\"seeded\",\"authorizationRef\":" authorization ",\"seedProfileRef\":" seed-profile suffix
 ticket-branch ::= prefix "create-ticket-branch\",\"expectedState\":\"seeded\",\"targetState\":\"ticket-ready\",\"authorizationRef\":" authorization suffix
@@ -6,10 +6,18 @@ local-commit ::= prefix "local-commit\",\"expectedState\":\"ticket-ready\",\"tar
 open-pr ::= prefix "open-pr\",\"expectedState\":\"implementation-local\",\"targetState\":\"review-open\",\"authorizationRef\":" authorization suffix
 integrate ::= prefix "integrate\",\"expectedState\":\"review-open\",\"targetState\":\"integrated\",\"authorizationRef\":" authorization suffix
 release ::= prefix "release\",\"expectedState\":\"integrated\",\"targetState\":\"released\",\"authorizationRef\":" authorization suffix
+checkpoint ::= checkpoint-seeded | checkpoint-ticket-ready | checkpoint-implementation-local | checkpoint-review-open | checkpoint-integrated | checkpoint-released
+checkpoint-seeded ::= prefix "checkpoint\",\"expectedState\":\"seeded\",\"targetState\":\"seeded\",\"authorizationRef\":" authorization continuity-suffix
+checkpoint-ticket-ready ::= prefix "checkpoint\",\"expectedState\":\"ticket-ready\",\"targetState\":\"ticket-ready\",\"authorizationRef\":" authorization continuity-suffix
+checkpoint-implementation-local ::= prefix "checkpoint\",\"expectedState\":\"implementation-local\",\"targetState\":\"implementation-local\",\"authorizationRef\":" authorization continuity-suffix
+checkpoint-review-open ::= prefix "checkpoint\",\"expectedState\":\"review-open\",\"targetState\":\"review-open\",\"authorizationRef\":" authorization continuity-suffix
+checkpoint-integrated ::= prefix "checkpoint\",\"expectedState\":\"integrated\",\"targetState\":\"integrated\",\"authorizationRef\":" authorization continuity-suffix
+checkpoint-released ::= prefix "checkpoint\",\"expectedState\":\"released\",\"targetState\":\"released\",\"authorizationRef\":" authorization continuity-suffix
 cleanup ::= prefix "cleanup\",\"expectedState\":" cleanup-source ",\"targetState\":\"terminal\",\"authorizationRef\":" authorization suffix
 
 prefix ::= "{\"schema\":\"wellmanifest.git-lifecycle/v1\",\"kind\":\"transition-request\",\"requestId\":" request-id ",\"repositoryRef\":" repository ",\"ticket\":" ticket ",\"action\":\""
 suffix ::= ",\"evidenceRefs\":" evidence-array ",\"idempotencyKey\":" idempotency "}"
+continuity-suffix ::= ",\"evidenceRefs\":[\"receipt:continuity." safe "\"],\"idempotencyKey\":" idempotency "}"
 cleanup-source ::= "\"integrated\"" | "\"released\""
 request-id ::= "\"request:" safe "\""
 repository ::= "\"repository:" safe "\""

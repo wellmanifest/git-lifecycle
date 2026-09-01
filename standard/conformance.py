@@ -16,11 +16,11 @@ SCHEMA_PATH = ROOT / "git-lifecycle.schema.json"
 GRAMMAR_PATH = ROOT / "git-lifecycle.v1.gbnf"
 LIFECYCLE_PATH = ROOT / "git-lifecycle.lifecycle"
 LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
-SCHEMA_DIGEST = "6c005cd86cfebcd2414ed7587faa047ee92f6bee29ba9a4ab9f88de74576f54d"
-GRAMMAR_DIGEST = "0cc78ea824285d1da5cd30f8624e53bdfa0291a2052c3d108f473071c770856c"
+SCHEMA_DIGEST = "0dda63a9a28c82378036992da7570e8c755a56346aeffda3dc351a306a1ca5ee"
+GRAMMAR_DIGEST = "6218d76eaeee770501dd24a42d038792138ec0a968afb69331fb034d3db962ef"
 LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
 LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
-LIFECYCLE_PROFILE_DIGEST = "c148b6102e5c6ef3e2b55b6038b3dc510a2c64f3f7f2e9e3d61dc2aa2661463f"
+LIFECYCLE_PROFILE_DIGEST = "97bf41d9b6b1e8772e14c4caafb5b134588adad4e834d3311c948a5af91d2b20"
 
 TRANSITIONS = {
     "seed-baseline": ("uninitialized", "seeded"),
@@ -29,6 +29,10 @@ TRANSITIONS = {
     "open-pr": ("implementation-local", "review-open"),
     "integrate": ("review-open", "integrated"),
     "release": ("integrated", "released"),
+}
+CHECKPOINT_STATES = {
+    "seeded", "ticket-ready", "implementation-local",
+    "review-open", "integrated", "released",
 }
 REQUEST_KEYS = {
     "schema", "kind", "requestId", "repositoryRef", "ticket", "action",
@@ -79,6 +83,9 @@ def validate_lifecycle_profile(schema: dict[str, object]) -> None:
     } | {
         ("INTEGRATED", "TERMINAL", "CLEANUP"),
         ("RELEASED", "TERMINAL", "CLEANUP"),
+    } | {
+        (lifecycle_name(state), lifecycle_name(state), "CHECKPOINT")
+        for state in CHECKPOINT_STATES
     }
     actual_transitions = {
         (item.source, item.target, item.event) for item in model.transitions
@@ -123,6 +130,15 @@ def validate_request(doc: dict[str, object]) -> None:
     if action == "cleanup":
         if doc["expectedState"] not in {"integrated", "released"} or doc["targetState"] != "terminal":
             raise ContractError("invalid cleanup transition")
+    elif action == "checkpoint":
+        if doc["expectedState"] not in CHECKPOINT_STATES or doc["targetState"] != doc["expectedState"]:
+            raise ContractError("checkpoint must preserve an initialized state")
+        continuity = [
+            item for item in evidence
+            if re.fullmatch(r"receipt:continuity[.][a-z0-9._:-]+", str(item))
+        ]
+        if len(continuity) != 1:
+            raise ContractError("checkpoint requires exactly one continuity receipt")
     elif TRANSITIONS.get(action) != (doc["expectedState"], doc["targetState"]):
         raise ContractError("invalid transition")
     if (action == "seed-baseline") != ("seedProfileRef" in doc):
@@ -149,6 +165,29 @@ def validate_seed_receipt(doc: dict[str, object]) -> None:
         raise ContractError("seed baseline cannot publish")
     if doc.get("secretsRedacted") is not True or not re.fullmatch(r"[0-9a-f]{40}", str(doc.get("headSha"))):
         raise ContractError("invalid safe seed receipt")
+
+
+def validate_checkpoint_receipt(doc: dict[str, object]) -> None:
+    if doc.get("action") != "checkpoint" or doc.get("outcome") != "applied":
+        raise ContractError("not an applied checkpoint receipt")
+    before = doc.get("beforeState")
+    if before not in CHECKPOINT_STATES or doc.get("afterState") != before:
+        raise ContractError("checkpoint receipt must preserve state")
+    if not re.fullmatch(r"[0-9a-f]{40}", str(doc.get("headSha"))):
+        raise ContractError("checkpoint receipt requires a real head")
+    if doc.get("pushPerformed") is not False or doc.get("publicationPerformed") is not False:
+        raise ContractError("checkpoint cannot push or publish")
+    if doc.get("secretsRedacted") is not True:
+        raise ContractError("checkpoint must redact secrets")
+    evidence = doc.get("evidenceRefs")
+    if not isinstance(evidence, list) or len(evidence) != len(set(evidence)):
+        raise ContractError("checkpoint evidence must be unique")
+    continuity = [
+        item for item in evidence
+        if re.fullmatch(r"receipt:continuity[.][a-z0-9._:-]+", str(item))
+    ]
+    if len(continuity) != 1:
+        raise ContractError("checkpoint receipt requires exactly one continuity receipt")
 
 
 def expect_rejected(name: str, validator, base: dict[str, object], mutation) -> str:
@@ -184,7 +223,25 @@ def run_all() -> dict[str, object]:
     sha = "a" * 40
     state = {"state": "seeded", "headSha": sha, "baselineSha": sha, "remoteConfigured": False, "implementationPresent": False}
     receipt = {"action": "seed-baseline", "outcome": "applied", "beforeState": "uninitialized", "afterState": "seeded", "headSha": sha, "pushPerformed": False, "publicationPerformed": False, "secretsRedacted": True}
+    checkpoint_request = {
+        **request,
+        "requestId": "request:checkpoint",
+        "action": "checkpoint",
+        "expectedState": "implementation-local",
+        "targetState": "implementation-local",
+        "evidenceRefs": ["receipt:continuity.ticket-010.1.example"],
+        "idempotencyKey": "idempotency:checkpoint",
+    }
+    checkpoint_request.pop("seedProfileRef")
+    checkpoint_receipt = {
+        "action": "checkpoint", "outcome": "applied",
+        "beforeState": "implementation-local", "afterState": "implementation-local",
+        "headSha": sha, "pushPerformed": False, "publicationPerformed": False,
+        "secretsRedacted": True,
+        "evidenceRefs": ["receipt:continuity.ticket-010.1.example"],
+    }
     validate_request(request); validate_seed_state(state); validate_seed_receipt(receipt)
+    validate_request(checkpoint_request); validate_checkpoint_receipt(checkpoint_receipt)
     rejected = [
         expect_rejected("shell-command", validate_request, request, lambda d: d.update(command="git push --force")),
         expect_rejected("remote-url", validate_request, request, lambda d: d.update(remoteUrl="ssh://attacker/repo")),
@@ -194,6 +251,11 @@ def run_all() -> dict[str, object]:
         expect_rejected("seeded-with-remote", validate_seed_state, state, lambda d: d.update(remoteConfigured=True)),
         expect_rejected("seed-push", validate_seed_receipt, receipt, lambda d: d.update(pushPerformed=True)),
         expect_rejected("seed-publication", validate_seed_receipt, receipt, lambda d: d.update(publicationPerformed=True)),
+        expect_rejected("checkpoint-state-movement", validate_request, checkpoint_request, lambda d: d.update(targetState="review-open")),
+        expect_rejected("checkpoint-without-continuity", validate_request, checkpoint_request, lambda d: d.update(evidenceRefs=["receipt:other"])),
+        expect_rejected("checkpoint-duplicate-evidence", validate_request, checkpoint_request, lambda d: d.update(evidenceRefs=["receipt:continuity.ticket-010.1.example"] * 2)),
+        expect_rejected("checkpoint-push", validate_checkpoint_receipt, checkpoint_receipt, lambda d: d.update(pushPerformed=True)),
+        expect_rejected("checkpoint-publication", validate_checkpoint_receipt, checkpoint_receipt, lambda d: d.update(publicationPerformed=True)),
     ]
     import repo_hygiene
 
@@ -201,7 +263,7 @@ def run_all() -> dict[str, object]:
     return {
         "schema": "wellmanifest.git-lifecycle-conformance/v1",
         "ok": True,
-        "positiveDocuments": 3,
+        "positiveDocuments": 5,
         "adversarialRejected": rejected,
         "schemaDigest": "sha256:" + SCHEMA_DIGEST,
         "grammarDigest": "sha256:" + GRAMMAR_DIGEST,
