@@ -87,7 +87,9 @@ The observation contract is consumed in this order:
 5. accept merge state only from a receipt bound to repository, pull request,
    head SHA, ticket and actor;
 6. delete the merged remote ticket branch when repository policy permits;
-7. delegate local checkout cleanup to `wellmanifest/worktrees`.
+7. use `wellmanifest/worktrees` for placement and read-only checkout inventory;
+   keep exact authorized cleanup effects in Git lifecycle and the adopting runtime.
+   See [the v5 handoff](information/worktree-lifecycle-handoff.md).
 
 Missing origin, an unbound branch, a closed-unmerged pull request or unique
 local commits are explicit findings. They are not repaired by guessing,

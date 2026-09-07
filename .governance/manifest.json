@@ -19,7 +19,9 @@
         "pyproject.toml",
         "go.mod",
         "Cargo.toml",
-        "pom.xml"
+        "pom.xml",
+        ".gitignore",
+        ".governance/manifest.json"
       ],
       "workstream": "integration"
     },
@@ -69,7 +71,9 @@
           "Cargo.toml",
           "pom.xml",
           "docs/**",
-          "standard/**"
+          "standard/**",
+          ".gitignore",
+          ".governance/manifest.json"
         ]
       },
       "interfaces": {
@@ -181,7 +185,7 @@
   ],
   "standard": {
     "id": "wellmanifest/new-project",
-    "version": "0.19.19"
+    "version": "0.20.8"
   },
   "ticket": {
     "activeStatuses": [
@@ -203,14 +207,9 @@
       "PLAN",
       "BLOCKED"
     ],
-    "requiredAgentFiles": [
-      "ai-*.md",
-      "ai-*-logs.txt"
-    ],
+    "requiredAgentFiles": [],
     "requiredFiles": [
       "README.md",
-      "preprompt.md",
-      "changelog.md",
       "intent.json"
     ],
     "root": "project"
