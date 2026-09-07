@@ -1,0 +1,146 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-014",
+  "summary": "Adopt Worktrees v5 and specify Git lifecycle handoff",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    ".githooks/pre-commit",
+    ".gitignore",
+    ".governance/AGENT_DECISIONS.md",
+    ".governance/adoption-bindings.json",
+    ".governance/adoption-bindings.schema.json",
+    ".governance/branch-intent-reconciliation.schema.json",
+    ".governance/branch_intent_reconciliation.py",
+    ".governance/branch_lifecycle_check.py",
+    ".governance/diagnostics.json",
+    ".governance/docs/BRANCH_INTENT_RECONCILIATION.md",
+    ".governance/error/GOV-STANDARD-UPDATE.md",
+    ".governance/error/GOV-TICKET-ACTIVITY.md",
+    ".governance/error/GOV-WORKTREE-OVERLAP.md",
+    ".governance/governance_check.py",
+    ".governance/intent.schema.json",
+    ".governance/manifest.base.json",
+    ".governance/manifest.json",
+    ".governance/manifest.lock.json",
+    ".governance/manifest.schema.json",
+    ".governance/package-manifest.json",
+    ".governance/precommit_standard_update.py",
+    ".governance/standard-adoption.schema.json",
+    ".governance/templates/conftest-worktree-bootstrap.py",
+    ".governance/ticket-activity.json",
+    ".governance/ticket-activity.schema.json",
+    ".governance/ticket_activity.py",
+    ".governance/work-continuity.schema.json",
+    ".governance/work_continuity.py",
+    ".governance/workspace_lifecycle_check.py",
+    ".governance/worktree_overlap_check.py",
+    ".governance/worktree_path_check.py",
+    ".governance/worktrees.lock.json",
+    ".governance/worktrees.schema.json",
+    ".subactor/.gitignore",
+    ".subactor/manifest.json",
+    "AGENTS.md",
+    "GEMINI.md",
+    "docs/README.md",
+    "docs/REPO_HYGIENE.md",
+    "docs/information/worktree-lifecycle-handoff.md",
+    "project/new-ticket.sh",
+    "project/ticket-014/README.md",
+    "project/ticket-014/intent.json",
+    "worktree-guard.yaml"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "7d77d4b7af57e69bc75c3a0290b3a4805c5c4438",
+    "targetBranch": "main",
+    "outcome": "Adopt the published new-project package carrying Worktrees v5, and specify the exact layout/lease/relative-link evidence handed to Git lifecycle execution without duplicating the Worktrees planner.",
+    "nonGoals": [
+      "Do not embed source diffs, stash contents, local paths or credentials in lifecycle documents",
+      "Do not restore or overwrite a divergent workspace automatically",
+      "Do not implement the external snapshot service in wellmanifest"
+    ],
+    "complexity": "L",
+    "estimatedMinutes": 60,
+    "budgets": {
+      "maxImplementationFiles": 15,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Worktrees owns placement and read-only inventory; Git lifecycle and the adopter own separately authorized creation, repair and cleanup effects. Upgrade managed adoption in one material ticket. Adopt the new required minimal ticket shape in the target-owned manifest while preserving other repository extensions. The integration workstream owns the exact target adoption manifest and anchored ignore configuration for this user-authorized rollout; declare these paths explicitly rather than claim them through arbitrary broad managed exclusions.",
+      "components": [
+        {
+          "name": "adopted-governance",
+          "paths": [
+            "project/TICKETS.md",
+            ".governance/**",
+            "AGENTS.md",
+            "GEMINI.md",
+            "CLAUDE.md",
+            ".cursor/**",
+            ".github/**",
+            ".githooks/**",
+            ".aider.conf.yml",
+            ".subactor/manifest.json",
+            ".subactor/.gitignore",
+            ".gitignore",
+            "worktree-guard.yaml",
+            "project/*.sh",
+            "project/*.bat",
+            "wellmanifest_governance.py",
+            "scripts/install-agent-hosts.sh",
+            "project.sh",
+            "project.bat"
+          ]
+        },
+        {
+          "name": "lifecycle-handoff",
+          "paths": [
+            "docs/**"
+          ]
+        }
+      ],
+      "responsibilityChanges": true,
+      "interfaceChanges": [],
+      "dataChanges": [
+        "Adopted Worktrees v5 classifies undotted v4 checkouts as read-only legacy."
+      ],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert checkpoint schema, grammar, Lifecycle projection, conformance and documentation together."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py --all",
+          "python3 standard/initial_ref_conformance.py --all",
+          "./project/governance-check.sh"
+        ],
+        "evidence": "Pending: lifecycle regressions and exact immutable managed adoption."
+      }
+    ],
+    "standardAdoption": {
+      "sourceRepository": "wellmanifest/new-project",
+      "fromRevision": "43999c793a86084b4c3198fe07be350105db59ec",
+      "toRevision": "5848c1efb3386765e221cde57090f8c221f3e857"
+    }
+  }
+}
