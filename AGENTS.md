@@ -1,5 +1,22 @@
 # AGENTS.md
 
+## Opted-in SQLite ticket storage
+
+When `git config --local --get new-project.ticketStorage` is `sqlite`, the
+registered primary checkout's ignored `project.sqlite` owns ticket content.
+References below to ticket README, intent, status and evidence mean records in
+that database; do not create or synchronize `project/ticket-*`, TODO or indexes
+for operational updates. Allocate through `project/new-ticket.sh` with the
+independently pinned Registry writer configured as `new-project.ticketStoreRoot`
+and `new-project.ticketStoreSha256`. Complete bounded intent in SQLite before
+implementation. Read it with the managed `ticket_input.py read` command and
+append changes through the Registry CLI with the expected revision.
+Local hooks and scope/continuity readers honor this mode. Protected CI still
+requires an independently acquired, exact-base/head snapshot and approval;
+local Git configuration, a database or its digest grants neither. Keep legacy
+files until a repository's protected CI adoption canary succeeds.
+
+
 This target repository follows `wellmanifest/new-project` policy-as-code.
 
 HOME vs ADOPT: wellmanifest owns standards; product CLI/daemons HOME in
@@ -10,6 +27,14 @@ SERVICE/FEATURE that create a repo, fill `intent.json` `placement`
 `shape=runtime_service` must not use `home=wellmanifest`.
 
 Before any multi-step implementation, an agent must:
+
+Run the managed `.governance/work_start_check.py --root . --workstream <id>`
+before development or allocation; add `--ticket ticket-NNN` for continuation.
+Observe registered worktrees and unintegrated branches, then prefer finishing
+authorized work, read-only assistance, accepted fenced handoff or serialization.
+A new ticket needs a free scope and WIP capacity. Recheck owner, intent, current
+state and controller fencing before writing. `--force-new` is not a bypass.
+Unknown ownership or remote/independent-clone state must not be guessed.
 
 1. Read `.governance/manifest.json`, `TODO.md`, `project/TICKETS.md` and the
    active ticket.
@@ -58,9 +83,16 @@ Before any multi-step implementation, an agent must:
    `project\governance-check.bat` on Windows) plus the stack checks before
    reporting completion. Root `project.sh` / `project.bat` are optional
    target-owned seed aliases and must not be assumed to contain the gate.
-9. Serialize ticket-ID allocation before branching, then use a separate
-   branch/worktree per implementation ticket. Resolve its location with the
-   managed `wellmanifest/worktrees` checker. Resolve the primary checkout from
+9. Reuse the matching authorized ticket/worktree before allocating another.
+   Evaluate actual writers per repository and scope, not chat-agent count.
+   Do not create a ticket/worktree for read-only inspection, local checks,
+   receipts, checkpoints or routine continuation. A write in a second repository
+   has its own owner; reading it does not require adoption or a maintenance task.
+   Allocate only when material delivery needs isolation and no matching authorized
+   checkout exists. Preserve the adopted delivery profile even for one writer:
+   Worktrees v5 still requires a canonical linked delivery checkout. Serialize
+   ticket-ID allocation before new branching, then resolve the required location
+   with the managed `wellmanifest/worktrees` checker. Resolve the primary checkout from
    Git even when allocation starts inside a linked checkout. The only
    publishable linked worktree is
    `<primaryCheckout>/.worktrees/<ticket-NNN>--<slug>` with
@@ -70,7 +102,9 @@ Before any multi-step implementation, an agent must:
    `/.subactor/{leases,sessions,recovery,receipts,cache,snapshots}/`; keep
    `.subactor/manifest.json` tracked. Before the first effect, feature-probe
    `git worktree add --relative-paths` and
-   `git worktree repair --relative-paths` (minimum Git 2.51.0), and reject a
+   `git worktree repair --relative-paths` (minimum Git 2.51.0). When the host starts outside the target checkout, pass
+   `feature-probe --from-worktree <checkout>` to the adopted checker; resolve
+   `repository_context_unavailable` before interpreting feature support. Reject a
    symlink in any existing canonical path component. Legacy v1/v2/v3/v4,
    system-temporary, duplicate and unknown registrations are read-only recovery
    inventory, never publishable locations. Never automatically move, repair,
@@ -92,23 +126,22 @@ Before any multi-step implementation, an agent must:
    either a `User` login is in protected `trusted-reviewers` or a `Bot` login
    is in the separate protected `trusted-validator-apps` input. Never trust an
    arbitrary Bot review.
-11a. **INVOKE VALIDATOR-AGENT — do not ask the human.** When publication needs
-   trusted merge approval (protected default branch, merge blocked on reviews,
-   or the user asks to publish/merge), the coding agent MUST dispatch
-   `subactor/validator-agent` itself:
+11a. **USE LOCAL ONEDEV AND THE INDEPENDENT VALIDATOR.** For `semcod/*` and
+   `subactor/*`, follow [.governance/docs/LOCAL_CI_PUBLICATION.md](.governance/docs/LOCAL_CI_PUBLICATION.md).
+   Resolve the protected repository profile, observe the current OneDev
+   head/base receipt and reuse any existing local reconciliation result.
+   Invoke the trusted `subactor/validator-agent/bin/run-local-direct-pr.sh`
+   with the exact repository, PR, ticket, head SHA and protected key reference;
+   use `--merge` only for already authorized publication. The deployed local
+   timer may own this invocation. GitHub Actions dispatch is a separate
+   transport and is not the default or an unavoidable dependency of local CI.
+   Do not declare publication blocked by Actions billing before checking the
+   local route. Retire a hosted check only through protected policy after an
+   equivalent deployed OneDev canary; preserve uncovered test/platform gates.
+   Freeze the head through review and merge. Never self-approve, write a fake
+   status, waive required checks or ask the human to invoke an available
+   Validator. Scope, pins, deployment and observed success are separate facts.
 
-   ```bash
-   # from a checkout of subactor/validator-agent @ main
-   ./bin/dispatch-direct-pr.sh \
-     --owner <org> --name <repo> --pr <N> --ticket ticket-NNN \
-     --wait-checks --merge --watch
-   ```
-
-   Freeze: re-read `gh pr view <N> --json headRefOid` immediately before
-   dispatch; do not push after freeze until approve or fail. MUST NOT ask the
-   human to “use the validator”, MUST NOT self-approve, and MUST NOT treat
-   chat/Markdown as merge approval. Normative:
-   `subactor/validator-agent/docs/PUBLICATION_FREEZE.md`.
 12. Require merge approval evidence to bind repository, PR, current HEAD,
    active ticket and actor. The protected resolver creates that evidence
    outside the PR checkout; repository-authored evidence is untrusted.
@@ -138,8 +171,10 @@ Before any multi-step implementation, an agent must:
    the exact allowlisted checkout path, never a pattern or branch name. Run the
    adopted workspace lifecycle checker through Goal for the terminal audit. CI
    validates GitHub state separately and cannot inspect a developer filesystem.
-17. Allocate every ticket ID only through `./project/new-ticket.sh` after
-   fetching/pruning. Never create or copy `project/ticket-{NNN}` manually; the
+17. Allocate every ticket ID only through `./project/new-ticket.sh` using
+   local and already-fetched remote refs. Fetch/prune only when explicitly
+   requested via `--refresh-remote` (C-CONCURRENCY-002).
+   Never create or copy `project/ticket-{NNN}` manually; the
    clone-wide lock and high-water reservation must exist before commit.
 18. Keep an implementation ticket `IN_PROGRESS / PUBLICATION` through
    exact-head review and trusted merge. The protected delivery controller closes
@@ -190,6 +225,18 @@ Before any multi-step implementation, an agent must:
     snapshot. Pre-commit checks only the local immutable pin; explicit
     adoption/updater automation owns freshness and the hook never fetches or
     mutates.
+
+25. Apply proportional evidence through
+    `.governance/decision_record.py classify-action --action <action>`.
+    Routine in-scope edits, formatting and local checks use the existing intent,
+    diff and check report. They do not require a new decision record. Never
+    generate APPROVE or REQUEST_CHANGES from a local PASS/FAIL; a valid legacy
+    record is not trusted review. Material scope/authority, destructive and
+    publication decisions retain recomputable evidence and independent control.
+    Finalize tracked carriers and format checks before snapshot/checkpoint and
+    lease release. Reuse the matching lease; coalesce same-boundary checkpoint
+    triggers. Do not recursively log the act of writing evidence. Read-only
+    inspection and external receipt writes do not acquire repository write leases.
 
 Markdown approval is an audit note, not trusted merge approval. Required
 merge approval comes from the repository's protected review, attestation and
