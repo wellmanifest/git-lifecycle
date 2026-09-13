@@ -1,9 +1,14 @@
 {
   "schema": "new-project.diagnostics/v2",
   "codes": {
+    "GOV-WORK-START-001": {
+      "message": "New work admission requires reconciliation of existing repository work or incomplete observations.",
+      "remediation": "Run the managed work-start check; reuse the matching ticket, assist read-only, arrange a fenced handoff or serialize. Preserve unknown work; do not force allocation.",
+      "documentation": "error/GOV-WORK-START.md"
+    },
     "GOV-AGENT-HOST-001": {
       "message": "Commit is not bound to an IN_PROGRESS ticket-NNN branch.",
-      "remediation": "Allocate through ./project/new-ticket.sh and commit on a branch whose name contains ticket-NNN.",
+      "remediation": "Inspect existing branches and worktrees first; reuse the allocated ticket checkout. Allocate through ./project/new-ticket.sh only after work-start admission; never rename or discard unknown work to satisfy the hook.",
       "documentation": "error/GOV-AGENT-HOST.md"
     },
     "GOV-AGENT-HOST-002": {

@@ -1,0 +1,135 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-015",
+  "summary": "Lossless authorized checkout reconciliation",
+  "workstream": "integration",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    ".githooks/pre-commit",
+    ".github/workflows/new-project-governance.yml",
+    ".governance/agent_host_check.py",
+    ".governance/approval-evidence.schema.json",
+    ".governance/branch_intent_reconciliation.py",
+    ".governance/branch_lifecycle_check.py",
+    ".governance/change-evaluation.schema.json",
+    ".governance/change_lease_check.py",
+    ".governance/check_required_checks.py",
+    ".governance/decision-record.schema.json",
+    ".governance/decision_record.py",
+    ".governance/diagnostics.json",
+    ".governance/docs/LOCAL_CI_PUBLICATION.md",
+    ".governance/error/GOV-STANDARD-UPDATE.md",
+    ".governance/error/GOV-WORK-START.md",
+    ".governance/error/GOV-WORKTREE-OVERLAP.md",
+    ".governance/generate_required_checks.py",
+    ".governance/governance_check.py",
+    ".governance/intent.schema.json",
+    ".governance/manifest.base.json",
+    ".governance/manifest.json",
+    ".governance/manifest.lock.json",
+    ".governance/package-manifest.json",
+    ".governance/precommit_standard_update.py",
+    ".governance/remediation-intent.schema.json",
+    ".governance/remediation_intent.py",
+    ".governance/standard_pack_check.py",
+    ".governance/terminal-receipt-registry.schema.json",
+    ".governance/ticket-activity-override.schema.json",
+    ".governance/ticket-activity.schema.json",
+    ".governance/ticket_activity.py",
+    ".governance/ticket_allocation.py",
+    ".governance/ticket_input.py",
+    ".governance/ticket_storage.py",
+    ".governance/work-start-report.schema.json",
+    ".governance/work_continuity.py",
+    ".governance/work_start_check.py",
+    ".governance/workspace_lifecycle_check.py",
+    ".governance/worktree_overlap_check.py",
+    ".governance/worktree_path_check.py",
+    ".governance/worktrees.lock.json",
+    ".governance/worktrees.schema.json",
+    "AGENTS.md",
+    "docs/information/worktree-lifecycle-handoff.md",
+    "project/new-ticket.sh",
+    "scripts/install-agent-hosts.sh",
+    "scripts/runtime.sh",
+    "project/ticket-015/**"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "37a1fe04d9f3e9ca021018ed85790886c9827cc9",
+    "targetBranch": "main",
+    "outcome": "Document lossless reconciliation of authorized paused checkouts without redundant human confirmation, preserving writer fencing, recovery and independent publication gates.",
+    "nonGoals": [
+      "Changing Git effect authority or bypassing hooks",
+      "Automatic takeover of unknown writers",
+      "Changing source files in another repository"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 2,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "The current user explicitly requests a reusable standard for the verified checkout handoff and standard upgrades in consumers. Extend the existing canonical Git lifecycle handoff document and adopt the verified published New-project 0.20.26 through its generator because the existing pre-commit updater requires this upgrade. Retain Worktrees placement and New-project enforcement ownership. The two material paths are the handoff document and target-owned manifest; managed payloads are exempt only after exact immutable adoption proof.",
+      "components": [
+        {
+          "name": "handoff-guidance",
+          "paths": [
+            "docs/information/worktree-lifecycle-handoff.md"
+          ]
+        },
+        {
+          "name": "adoption",
+          "paths": [
+            ".governance/**",
+            ".githooks/pre-commit",
+            ".github/workflows/new-project-governance.yml",
+            "AGENTS.md",
+            "project/new-ticket.sh",
+            "scripts/install-agent-hosts.sh",
+            "scripts/runtime.sh"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert only the reviewed document change; preserve all checkout and recovery data."
+    },
+    "runtimeDependencies": [],
+    "standardAdoption": {
+      "sourceRepository": "wellmanifest/new-project",
+      "fromRevision": "5848c1efb3386765e221cde57090f8c221f3e857",
+      "toRevision": "8d86cd61404d51809532a8292ce9c0cc02ed6157"
+    },
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "./project/governance-check.sh --format json",
+          "docker compose run --rm conformance"
+        ],
+        "evidence": "Local deterministic governance and existing isolated lifecycle conformance, followed by independent exact-head review before merge."
+      }
+    ]
+  }
+}

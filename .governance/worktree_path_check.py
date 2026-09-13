@@ -34,6 +34,16 @@ def _validate_segment(label: str, value: str) -> None:
         raise ValueError(f"{label} must contain lowercase ASCII words separated by hyphens")
 
 
+def _validate_repository_name(repository_name: str) -> None:
+    if (
+        not isinstance(repository_name, str)
+        or not repository_name
+        or repository_name in {".", ".."}
+        or any(character in repository_name for character in ("/", "\\", "\0"))
+    ):
+        raise ValueError("repositoryName must be an observed repository basename")
+
+
 def plan(
     *,
     repository: str,
@@ -44,7 +54,7 @@ def plan(
     path_style: str = "posix",
 ) -> dict[str, str]:
     """Return the canonical v5 layout record for one delivery unit."""
-    _validate_segment("repositoryName", repository_name)
+    _validate_repository_name(repository_name)
     _validate_segment("slug", slug)
     ticket_match = TICKET_RE.fullmatch(ticket)
     if not ticket_match:
@@ -229,22 +239,14 @@ def _direct_child_stem(path: PurePath, root: PurePath) -> str | None:
     return relative.name if len(relative.parts) == 1 else None
 
 
-def classify_path(
-    *,
-    path: str,
-    primary_checkout: str,
-    repository_name: str,
-    branch: str | None = None,
-    path_style: str = "posix",
-) -> dict[str, Any]:
-    """Classify one registered path without changing or resolving it."""
-    path_type = _path_type(path_style)
-    candidate = path_type(path)
-    primary = path_type(primary_checkout)
-    workspace = primary.parent
-    stem: str | None = None
-    layout_version: str | None = None
+def _legacy_v1_stem(value, repository_name):
+    return value.startswith(f"{repository_name}--") and STEM_RE.fullmatch(
+        value[len(repository_name) + 2 :]
+    )
 
+
+def _classify_location(candidate, primary, workspace, repository_name, path_style):
+    stem = layout_version = None
     if candidate == primary:
         classification = "primary"
     elif (
@@ -267,9 +269,7 @@ def classify_path(
         classification, layout_version, stem = "legacy-v2", "v2", value
     elif (
         value := _direct_child_stem(candidate, workspace / ".worktrees")
-    ) and value.startswith(f"{repository_name}--") and STEM_RE.fullmatch(
-        value[len(repository_name) + 2 :]
-    ):
+    ) and _legacy_v1_stem(value, repository_name):
         classification = "legacy-v1"
         layout_version = "v1"
         stem = value[len(repository_name) + 2 :]
@@ -280,6 +280,24 @@ def classify_path(
         classification = "system-temp"
     else:
         classification = "unknown"
+
+    return classification, layout_version, stem
+
+
+def classify_path(
+    *,
+    path: str,
+    primary_checkout: str,
+    repository_name: str,
+    branch: str | None = None,
+    path_style: str = "posix",
+) -> dict[str, Any]:
+    """Classify one registered path without changing or resolving it."""
+    path_type = _path_type(path_style)
+    candidate = path_type(path)
+    primary = path_type(primary_checkout)
+    workspace = primary.parent
+    classification, layout_version, stem = _classify_location(candidate, primary, workspace, repository_name, path_style)
 
     ticket, slug = _delivery_identity(stem, branch)
     normalized_branch = branch.removeprefix("refs/heads/") if branch else None
@@ -294,6 +312,29 @@ def classify_path(
     }
 
 
+def _mark_duplicate_deliveries(entries):
+    identity_counts = Counter(
+        (entry["ticket"], entry["slug"])
+        for entry in entries
+        if entry["classification"] != "primary" and entry["ticket"] and entry["slug"]
+    )
+    branch_counts = Counter(
+        entry["branch"]
+        for entry in entries
+        if entry["classification"] != "primary" and entry["branch"]
+    )
+    for entry in entries:
+        identity = (entry["ticket"], entry["slug"])
+        if (
+            entry["classification"] != "primary"
+            and (
+                (entry["ticket"] and identity_counts[identity] > 1)
+                or (entry["branch"] and branch_counts[entry["branch"]] > 1)
+            )
+        ):
+            entry["anomalies"].append("duplicate-delivery")
+
+
 def inventory(
     *,
     repository: str,
@@ -303,13 +344,7 @@ def inventory(
     path_style: str = "posix",
 ) -> dict[str, Any]:
     """Build a deterministic, observation-only inventory record."""
-    if (
-        not isinstance(repository_name, str)
-        or not repository_name
-        or repository_name in {".", ".."}
-        or any(character in repository_name for character in ("/", "\\", "\0"))
-    ):
-        raise ValueError("repositoryName must be an observed repository basename")
+    _validate_repository_name(repository_name)
     path_type = _path_type(path_style)
     primary = path_type(primary_checkout)
     if not primary.is_absolute():
@@ -338,26 +373,7 @@ def inventory(
         )
         entries.append(entry)
 
-    identity_counts = Counter(
-        (entry["ticket"], entry["slug"])
-        for entry in entries
-        if entry["classification"] != "primary" and entry["ticket"] and entry["slug"]
-    )
-    branch_counts = Counter(
-        entry["branch"]
-        for entry in entries
-        if entry["classification"] != "primary" and entry["branch"]
-    )
-    for entry in entries:
-        identity = (entry["ticket"], entry["slug"])
-        if (
-            entry["classification"] != "primary"
-            and (
-                (entry["ticket"] and identity_counts[identity] > 1)
-                or (entry["branch"] and branch_counts[entry["branch"]] > 1)
-            )
-        ):
-            entry["anomalies"].append("duplicate-delivery")
+    _mark_duplicate_deliveries(entries)
 
     classification_counts = Counter(entry["classification"] for entry in entries)
     anomaly_counts = Counter(anomaly for entry in entries for anomaly in entry["anomalies"])
@@ -428,9 +444,19 @@ def _version_tuple(value: str) -> tuple[int, int, int]:
 def feature_probe(
     git: str = "git",
     runner: Callable[..., subprocess.CompletedProcess[bytes]] = subprocess.run,
+    *,
+    from_worktree: str = ".",
 ) -> dict[str, Any]:
-    """Probe both the minimum version and required relative-path options."""
-    version_result = runner([git, "--version"], check=False, capture_output=True)
+    """Probe Git in the chosen repository, without mutating caller state."""
+    # Hooks and concurrent hosts may inherit selectors for another checkout.
+    # The explicit cwd owns this read-only observation, not those selectors.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    context = runner(
+        [git, "-C", from_worktree, "rev-parse", "--git-dir"],
+        check=False, capture_output=True, env=env,
+    )
+    context_ok = context.returncode == 0
+    version_result = runner([git, "--version"], check=False, capture_output=True, env=env)
     version_text = (version_result.stdout + version_result.stderr).decode(
         "utf-8", "replace"
     ).strip()
@@ -444,12 +470,19 @@ def feature_probe(
 
     options: dict[str, bool] = {}
     for command in ("add", "repair"):
-        result = runner([git, "worktree", command, "-h"], check=False, capture_output=True)
-        help_text = (result.stdout + result.stderr).decode("utf-8", "replace")
-        options[command] = "relative-paths" in help_text
+        options[command] = False
+        if context_ok:
+            result = runner(
+                [git, "-C", from_worktree, "worktree", command, "-h"],
+                check=False, capture_output=True, env=env,
+            )
+            help_text = (result.stdout + result.stderr).decode("utf-8", "replace")
+            options[command] = result.returncode in (0, 129) and "relative-paths" in help_text
     supported = version_ok and all(options.values())
     return {
         "minimumGitVersion": MINIMUM_GIT_VERSION,
+        "repositoryContextValid": context_ok,
+        "probeError": None if context_ok else "repository_context_unavailable",
         "gitVersion": version_text,
         "versionSupported": version_ok,
         "worktreeAddRelativePaths": options["add"],
@@ -494,6 +527,8 @@ def main() -> int:
 
     probe = subparsers.add_parser("feature-probe")
     probe.add_argument("--git", default="git")
+    probe.add_argument("--from-worktree", default=".",
+                       help="Repository to probe; independent of the caller cwd")
 
     args = parser.parse_args()
     if args.command == "plan":
@@ -528,7 +563,7 @@ def main() -> int:
         print(json.dumps(record, indent=2))
         return 0
 
-    result = feature_probe(args.git)
+    result = feature_probe(args.git, from_worktree=args.from_worktree)
     print(json.dumps(result, indent=2))
     return 0 if result["supported"] else 1
 
