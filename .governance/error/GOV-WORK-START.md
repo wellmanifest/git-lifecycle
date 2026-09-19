@@ -49,6 +49,96 @@ task -> registered clone observation
    owner, fencing and the governance gate at the effect boundary. A saved
    report is evidence, never a replayable admission token.
 
+For a branch without a registered worktree, distinct commit IDs alone are not
+a competing delta. Admission compares the complete Git tree of **every**
+commit unique to that branch with target trees strictly after the common
+ancestor. A new intentional rollback cannot reuse a pre-divergence snapshot.
+If all snapshots already occur there, the branch remains in `uncheckedBranches`
+but does not block admission. This narrowly handles preserved pre-rewrite
+copies without renaming or deleting them. Matching HEAD alone, matching paths,
+or matching patch IDs is insufficient. An unmatched intermediate commit or
+later new work still routes to reconciliation. Missing history fails closed.
+
+### Stale carrier of an integrated ticket
+
+Blocker `integrated-ticket-carrier` names an active-projected ticket whose
+carrier is dirty in a checkout while its directory is already on the observed
+target and no `ticket/NNN` branch lies outside that target. A typical source is
+an allocation-time copy left in a primary checkout that is behind the target.
+The conservative `status-projection` activity is unchanged, so the copy still
+counts toward the workstream limit; admission routes to RECONCILE instead of an
+unexplained SERIALIZE. Resolve it without discarding unknown work:
+
+1. Compare each dirty carrier with the target version and confirm no process or
+   session is still editing it.
+2. Store a content-addressed, secret-scanned snapshot of every dirty file in
+   ignored receipt storage, recording base HEAD and target SHA.
+3. Recheck the file digests, restore only the snapshotted carrier paths and
+   fast-forward the checkout; leave unrelated dirty work in place.
+4. Reobserve admission. A differing carrier that records real continuation work
+   needs a new or reused ticket, not a restore.
+
+### Writes in the selected checkout
+
+The selected checkout of REUSE_EXISTING is not a competing peer, yet another
+writer may have left uncommitted changes in it. Every registered checkout
+reports `dirtyNewestModifiedAt`, the newest modification time of its dirty
+paths: recency evidence only, never writer identity or authority. When dirty
+paths of the selected checkout overlap the requested scope, `requiredBeforeWrite`
+asks the caller to confirm they belong to this session. A caller that observed
+the checkout earlier passes that report's `dirtyDigest` with
+`--ticket ticket-NNN --expect-dirty-digest <sha256>`; any change since then adds
+blocker `selected-checkout-changed` and removes REUSE_EXISTING. This is a
+clone-local compare-and-swap on content, not a lease or cross-clone lock.
+Disjoint dirty work of another writer may continue beside authorized work.
+
+Registered checkout observations, dirty paths, active scopes and WIP limits
+are unchanged. Historical content inclusion is not current behavior, owner
+consent, a merge receipt, ticket closure or permission to discard history.
+Use the normal reconciliation process for cleanup. Target-tree indexing is
+local to one observation; a changed target cannot reuse an earlier result.
+
+### Optional publication observation
+
+Add `--observe-publication` to the same query to read live `origin` branch
+advertisements, without fetch, ref updates, staging or lazy object downloads.
+For example, from an adopted checkout:
+
+```bash
+python3 .governance/work_start_check.py --root . --workstream integration \
+  --ticket ticket-001 --observe-publication
+```
+
+Use the actual declared workstream and ticket. Without this flag the query
+remains local and its admission behavior is unchanged. The optional field is
+`new-project.publication-observation/v1`, addressed by
+`urn:wellmanifest:new-project:schema:work-start-report:v1#publicationObservation`.
+Use the helper and schema from the same immutable pin; an older closed schema
+does not accept the new opt-in field. This is an observation, not a new gate.
+
+| Field per registered checkout | Meaning |
+| --- | --- |
+| `uncommittedPathCount` | Staged, unstaged and untracked paths, including tracking carriers. |
+| `unpublishedCommitCount` | Commits reachable from HEAD but not from any observed `origin` branch; `null` when not proven. |
+| `remoteContainingRefs` | Advertised branch refs proven to contain the complete HEAD history. |
+| `sameBranchContainsHead` | Whether the remote branch with the same name contains HEAD; separate from publication on another branch. |
+| `headReachableFromTarget` | Git ancestry only, never protected merge, review or release evidence. |
+| `nextAction` | Read-only recommendation, not effect authorization. |
+
+Scope is explicitly `origin-heads`: other remotes, tags and hidden PR refs are
+not queried. Being ahead of local `main` or a same-name upstream is not proof
+that code is absent from GitHub. Shallow history or missing advertised objects
+produce `partial`; exact HEAD/ancestry evidence can still prove publication,
+but incomplete history cannot prove a nonzero unpublished count. Unavailable
+or malformed remote data produces `unavailable`; a changed second advertisement
+produces `changed` and invalidates remote-derived facts. `null` is not zero.
+No prompt for credentials or Git stderr is exposed in the report. This is a
+bounded observation, not an atomic remote snapshot or a cross-machine lock.
+
+The result explicitly lists PR, checks, approval, protected merge, release and
+deployment as unobserved stages. Preserve dirty work regardless of remote
+status. Gather those stages' own exact-head receipts before claiming DONE.
+
 ## Verification
 
 Report `new-project.work-start-report/v1` uses closed schema
@@ -63,8 +153,18 @@ lock before reserving a number. A rejected attempt leaves no new ticket,
 high-water reservation or worktree. The query exit code alone does not
 authorize development; REUSE_EXISTING also requires the current writer lease.
 
+The allocator accepts repeatable `--path` arguments for explicit implementation
+scope, for example `./project/new-ticket.sh --workstream api --path 'api/new/**'`.
+Quote glob patterns: the shell must not expand them. The managed storage bridge
+validates repository-relative paths against the gate's workstream ownership
+predicate before reservation. Malformed, unowned and tracking-only scopes fail.
+The exact arguments reach live admission under the allocation lock; the admitted
+paths are retained in file and SQLite intents. Without `--path`, admission still
+uses the whole workstream. A disjoint scope does not bypass an occupied WIP slot.
+Revalidate admission and fencing if the eventual intent expands beyond this scope.
+
 This is not a global scheduler or an editor lock. Independent clones, live
-GitHub state, processes and writer authority require separate observations.
+GitHub PR/check/release state, processes and writer authority require separate observations.
 The query does not fetch or verify a lease. Recheck it at the effect boundary;
 the allocator's ID lock does not replace writer fencing. Unborn seed bootstrap
 retains its separate contract, not a development-gate exemption.

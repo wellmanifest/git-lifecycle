@@ -19,9 +19,7 @@
         "pyproject.toml",
         "go.mod",
         "Cargo.toml",
-        "pom.xml",
-        ".gitignore",
-        ".governance/manifest.json"
+        "pom.xml"
       ],
       "workstream": "integration"
     },
@@ -40,8 +38,17 @@
       },
       "governance": {
         "ownedPaths": [
+          ".aider.conf.yml",
+          ".cursor/rules/**",
+          ".githooks/**",
+          ".github/copilot-instructions.md",
+          ".github/workflows/new-project-governance.yml",
+          ".gitignore",
           ".governance/**",
+          ".subactor/**",
           "AGENTS.md",
+          "CLAUDE.md",
+          "GEMINI.md",
           "README.md",
           "TODO.md",
           "CHANGELOG.md",
@@ -50,7 +57,10 @@
           "project.sh",
           "project.bat",
           "project/**",
-          "scripts/runtime.sh"
+          "scripts/install-agent-hosts.sh",
+          "scripts/runtime.sh",
+          "wellmanifest_governance.py",
+          "worktree-guard.yaml"
         ]
       },
       "infrastructure": {
@@ -71,9 +81,7 @@
           "Cargo.toml",
           "pom.xml",
           "docs/**",
-          "standard/**",
-          ".gitignore",
-          ".governance/manifest.json"
+          "standard/**"
         ]
       },
       "interfaces": {
@@ -185,7 +193,7 @@
   ],
   "standard": {
     "id": "wellmanifest/new-project",
-    "version": "0.20.26"
+    "version": "0.20.32"
   },
   "ticket": {
     "activeStatuses": [
