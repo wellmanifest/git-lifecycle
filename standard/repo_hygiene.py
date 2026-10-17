@@ -272,7 +272,14 @@ def _snapshot(
 
 def self_test() -> dict[str, Any]:
     now = "2026-08-15T18:00:00Z"
-    clean = evaluate(_snapshot(repository="wellmanifest/git-lifecycle", observed_at=now))
+    clean = evaluate(
+        _snapshot(
+            repository="wellmanifest/git-lifecycle",
+            observed_at=now,
+            default_branch="main",
+            stale_window_seconds=DEFAULT_STALE_SECONDS,
+        )
+    )
     if clean.status != "healthy" or clean.findings:
         raise AssertionError("clean repo must not emit")
 
