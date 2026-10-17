@@ -1,0 +1,73 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-017",
+  "summary": "Wire optional parameters in repo_hygiene snapshot helper",
+  "workstream": "integration",
+  "classification": {
+    "kind": "SERVICE",
+    "priority": "P2",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-017/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "standard/repo_hygiene.py",
+    ".governance/standard-adoption.json"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "2f8ba2ee724fce603ead2c3067c698d3c2ce0e59",
+    "targetBranch": "main",
+    "outcome": "Wire default_branch and stale_window_seconds at the _snapshot call site in standard/repo_hygiene.py and align .governance/standard-adoption.json.",
+    "nonGoals": [
+      "No breaking CLI or schema changes"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 15,
+    "budgets": {
+      "maxImplementationFiles": 1,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Pass default_branch and stale_window_seconds explicitly in self_test _snapshot invocation.",
+      "components": [
+        {
+          "name": "repo-hygiene",
+          "paths": [
+            "standard/repo_hygiene.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert explicit keyword arguments in standard/repo_hygiene.py."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/repo_hygiene.py --all",
+          "./project/governance-check.sh"
+        ],
+        "evidence": "All tests, standard_pack_check, and governance checks pass with 0 findings."
+      }
+    ]
+  }
+}
