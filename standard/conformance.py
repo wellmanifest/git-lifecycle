@@ -18,9 +18,9 @@ LIFECYCLE_PATH = ROOT / "git-lifecycle.lifecycle"
 LIFECYCLE_VALIDATOR_PATH = ROOT / "lifecycle.py"
 SCHEMA_DIGEST = "0dda63a9a28c82378036992da7570e8c755a56346aeffda3dc351a306a1ca5ee"
 GRAMMAR_DIGEST = "6218d76eaeee770501dd24a42d038792138ec0a968afb69331fb034d3db962ef"
-LIFECYCLE_SOURCE_REVISION = "4b5e131a670afb46ca87291479fed7c0fefcf370"
-LIFECYCLE_VALIDATOR_DIGEST = "9c3f3076b5b45408d3eefc34cd567b58821aa565d3fe3bf6339641111079ede0"
-LIFECYCLE_PROFILE_DIGEST = "97bf41d9b6b1e8772e14c4caafb5b134588adad4e834d3311c948a5af91d2b20"
+LIFECYCLE_SOURCE_REVISION = "1ea2a90bd5b90a768ad2b36a9c1c330523bc80b4"
+LIFECYCLE_VALIDATOR_DIGEST = "7f7f1c45b7611e186cc640ada69cf2849d16841564c4028b9fc06dd0a05c2b3a"
+LIFECYCLE_PROFILE_DIGEST = "411f5d0cfb7c38404b8af7b94df4d3c889630e11f3584001b51394b8e6cac29b"
 
 TRANSITIONS = {
     "seed-baseline": ("uninitialized", "seeded"),
@@ -74,6 +74,8 @@ def validate_lifecycle_profile(schema: dict[str, object]) -> None:
     report = lifecycle.validate_path(LIFECYCLE_PATH, lifecycle.embedded_catalog())
     if not report.valid or len(report.lifecycles) != 1:
         raise ContractError("Lifecycle DSL profile is invalid")
+    if lifecycle.audit_path(LIFECYCLE_PATH)["finding_count"] != 0:
+        raise ContractError("Lifecycle DSL profile has compaction findings")
     model = report.lifecycles[0]
     state_values = schema["$defs"]["state"]["enum"]  # type: ignore[index]
     expected_states = {lifecycle_name(str(value)) for value in state_values}

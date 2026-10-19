@@ -1,0 +1,81 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-018",
+  "summary": "Vendor compact Lifecycle DSL validator and compact git lifecycle profiles",
+  "workstream": "integration",
+  "classification": {
+    "kind": "SERVICE",
+    "priority": "P2",
+    "origin": "health"
+  },
+  "allowedPaths": [
+    "project/ticket-018/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "standard/conformance.py",
+    "standard/git-lifecycle.lifecycle",
+    "standard/initial_ref_conformance.py",
+    "standard/lifecycle.py",
+    "standard/repository-initial-ref.lifecycle"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "a5ef7d1852e840a1b1e0596e4267c9ec91c46577",
+    "targetBranch": "main",
+    "outcome": "Vendor compact Lifecycle DSL validator (wellmanifest/lifecycle 1ea2a90bd5b90a768ad2b36a9c1c330523bc80b4), compact git-lifecycle.lifecycle and repository-initial-ref.lifecycle to 0 compaction findings, and enforce zero compaction findings in conformance checks.",
+    "nonGoals": [
+      "No breaking changes to the git-lifecycle or repository-initial-ref JSON Schemas or state graphs"
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Update vendored standard/lifecycle.py to revision 1ea2a90bd5b90a768ad2b36a9c1c330523bc80b4, compact both lifecycle profiles with STATES/EVENTS/EVIDENCES/multi-source TRANSITION constructs, and require finding_count == 0 in conformance checks.",
+      "components": [
+        {
+          "name": "standard",
+          "paths": [
+            "standard/conformance.py",
+            "standard/git-lifecycle.lifecycle",
+            "standard/initial_ref_conformance.py",
+            "standard/lifecycle.py",
+            "standard/repository-initial-ref.lifecycle"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert vendored validator, compacted profiles, and updated digests in standard/."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 standard/conformance.py --all",
+          "python3 standard/initial_ref_conformance.py --all",
+          "./project/governance-check.sh"
+        ],
+        "evidence": "Both conformance suites and governance checks pass with 0 compaction findings."
+      }
+    ]
+  }
+}
