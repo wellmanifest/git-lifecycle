@@ -21,7 +21,7 @@ PROFILE_PATH = ROOT / "repository-initial-ref.lifecycle"
 SCHEMA_ID = "https://wellmanifest.dev/schemas/repository-initial-ref/v1"
 DOCUMENT_SCHEMA = "wellmanifest.repository-initial-ref/v1"
 SCHEMA_DIGEST = "b2aa4920f9e1e1370f9eca2a6048ac1a8c9a63cc9c87195918150ef7d2745527"
-PROFILE_DIGEST = "7ac49adfb92dac1d03e10efb382290e0e08c367b5ec655933d12db30803dbe2c"
+PROFILE_DIGEST = "d55cb185860385fc33a689e9fddb7519894d5fcd806f349735cdc92906bfd561"
 
 SHA = re.compile(r"^[a-f0-9]{40}$")
 SHA256 = re.compile(r"^[a-f0-9]{64}$")
@@ -406,6 +406,8 @@ def validate_schema_and_profile() -> None:
     report = lifecycle.validate_path(PROFILE_PATH, lifecycle.embedded_catalog())
     if not report.valid or len(report.lifecycles) != 1:
         raise ContractError("initial-ref Lifecycle profile is invalid")
+    if lifecycle.audit_path(PROFILE_PATH)["finding_count"] != 0:
+        raise ContractError("initial-ref Lifecycle profile has compaction findings")
     model = report.lifecycles[0]
     transitions = {(item.source, item.target, item.event, item.evidence) for item in model.transitions}
     if (
