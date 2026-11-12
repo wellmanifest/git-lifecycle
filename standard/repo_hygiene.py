@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Dependency-free evaluator for wellmanifest.git-lifecycle/repo-hygiene/v1.
 
 The document is an observation. It never merges, deletes branches, force-pushes
@@ -11,12 +10,21 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta
 from typing import Any
+
+from git_primitives import (
+    EPOCH,
+    load_strict_json_file,
+    parse_rfc3339_ns,
+    validate_git_ref,
+    validate_owner_repo,
+)
 
 SCHEMA = "wellmanifest.git-lifecycle/repo-hygiene/v1"
 INVARIANT = "one_main_zero_pr"
 DEFAULT_STALE_SECONDS = 7200
+MAX_STALE_SECONDS = 604_800
 REQUIRED_DEFAULT_BRANCH = "main"
 MAX_ITEMS = 10_000
 SNAPSHOT_FIELDS = {
@@ -44,25 +52,17 @@ class HygieneFinding:
     severity: str
     message: str
     remediation: str
-    # `message` and `remediation` are constants per code, so two findings of one
-    # code differ only here. Ordering must therefore never reach this field:
-    # comparing two mappings raises, and it raises on exactly the repositories
-    # this document exists to flag — one with several stale pull requests.
     evidence: dict[str, Any] = field(compare=False)
 
 
 def _sort_key(finding: HygieneFinding) -> tuple[str, str, str, str]:
-    """A total order derived from content, so one snapshot yields one verdict.
-
-    Excluding evidence from comparison is what keeps `sorted` safe; including
-    its canonical form here is what keeps the order deterministic rather than
-    merely insertion-stable.
-    """
     return (
         finding.code,
         finding.severity,
         finding.message,
-        json.dumps(finding.evidence, sort_keys=True, separators=(",", ":")),
+        json.dumps(
+            finding.evidence, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ),
     )
 
 
@@ -81,14 +81,14 @@ class HygieneVerdict:
         return payload
 
 
+def _parse_utc_ns(value: Any, label: str) -> int:
+    return parse_rfc3339_ns(value, label, HygieneError, require_z=True)
+
+
 def parse_utc(value: Any, label: str) -> datetime:
-    if not isinstance(value, str) or not value.endswith("Z"):
-        raise HygieneError(f"{label} must be an RFC3339 UTC timestamp ending in Z")
-    try:
-        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
-    except ValueError as exc:
-        raise HygieneError(f"{label} is not a valid timestamp") from exc
-    return parsed.astimezone(timezone.utc)
+    total_ns = _parse_utc_ns(value, label)
+    whole_seconds, rem_ns = divmod(total_ns, 1_000_000_000)
+    return EPOCH + timedelta(seconds=whole_seconds, microseconds=rem_ns // 1_000)
 
 
 def _require_fields(value: dict[str, Any], fields: set[str], label: str) -> None:
@@ -96,16 +96,13 @@ def _require_fields(value: dict[str, Any], fields: set[str], label: str) -> None
     if observed != fields:
         missing = sorted(fields - observed)
         extra = sorted(observed - fields)
-        raise HygieneError(f"{label} fields are invalid (missing={missing}, extra={extra})")
-
-
-def _age_seconds(moment: datetime, observed_at: datetime) -> float:
-    return (observed_at - moment).total_seconds()
+        raise HygieneError(
+            f"{label} fields are invalid (missing={missing}, extra={extra})"
+        )
 
 
 def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
     """Classify one repository snapshot without performing GitHub effects."""
-
     if not isinstance(snapshot, dict):
         raise HygieneError("snapshot root must be an object")
     _require_fields(snapshot, SNAPSHOT_FIELDS, "snapshot")
@@ -115,16 +112,19 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
         raise HygieneError("kind must be repo-hygiene-snapshot")
     if snapshot["invariant"] != INVARIANT:
         raise HygieneError("invariant must be one_main_zero_pr")
-    repository = snapshot["repository"]
-    if not isinstance(repository, str) or "/" not in repository:
-        raise HygieneError("repository must be owner/name")
-    default_branch = snapshot["defaultBranch"]
-    if not isinstance(default_branch, str) or not default_branch:
-        raise HygieneError("defaultBranch must be a non-empty ref")
+    repository = validate_owner_repo(snapshot["repository"], "repository", HygieneError)
+    default_branch = validate_git_ref(
+        snapshot["defaultBranch"], "defaultBranch", HygieneError
+    )
     stale_window = snapshot["staleWindowSeconds"]
-    if not isinstance(stale_window, int) or isinstance(stale_window, bool) or stale_window < 1:
-        raise HygieneError("staleWindowSeconds must be a positive integer")
-    observed_at = parse_utc(snapshot["observedAt"], "observedAt")
+    if (
+        not isinstance(stale_window, int)
+        or isinstance(stale_window, bool)
+        or not 1 <= stale_window <= MAX_STALE_SECONDS
+    ):
+        raise HygieneError("staleWindowSeconds must be an integer in 1..604800")
+    observed_ns = _parse_utc_ns(snapshot["observedAt"], "observedAt")
+    window_ns = stale_window * 1_000_000_000
 
     pulls_value = snapshot["openPullRequests"]
     if not isinstance(pulls_value, list) or len(pulls_value) > MAX_ITEMS:
@@ -137,14 +137,28 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
         _require_fields(item, PR_FIELDS, f"openPullRequests[{index}]")
         number = item["number"]
         if not isinstance(number, int) or isinstance(number, bool) or number < 1:
-            raise HygieneError(f"openPullRequests[{index}].number must be a positive integer")
+            raise HygieneError(
+                f"openPullRequests[{index}].number must be a positive integer"
+            )
         if number in numbers:
             raise HygieneError("openPullRequests must not contain duplicate numbers")
+        validate_git_ref(
+            item["headRef"], f"openPullRequests[{index}].headRef", HygieneError
+        )
+        head_repo = item["headRepository"]
+        if head_repo is not None:
+            validate_owner_repo(
+                head_repo, f"openPullRequests[{index}].headRepository", HygieneError
+            )
         numbers.add(number)
         pulls.append(item)
 
     branches_value = snapshot["branches"]
-    if not isinstance(branches_value, list) or not branches_value or len(branches_value) > MAX_ITEMS:
+    if (
+        not isinstance(branches_value, list)
+        or not branches_value
+        or len(branches_value) > MAX_ITEMS
+    ):
         raise HygieneError("branches must be a non-empty bounded array")
     branches: list[dict[str, Any]] = []
     names: set[str] = set()
@@ -152,13 +166,11 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
         if not isinstance(item, dict):
             raise HygieneError(f"branches[{index}] must be an object")
         _require_fields(item, BRANCH_FIELDS, f"branches[{index}]")
-        name = item["name"]
-        if not isinstance(name, str) or not name:
-            raise HygieneError(f"branches[{index}].name must be a non-empty ref")
+        name = validate_git_ref(item["name"], f"branches[{index}].name", HygieneError)
         if name in names:
             raise HygieneError("branches must not contain duplicate names")
         names.add(name)
-        parse_utc(item["committedAt"], f"branches[{index}].committedAt")
+        _parse_utc_ns(item["committedAt"], f"branches[{index}].committedAt")
         branches.append(item)
     if default_branch not in names:
         raise HygieneError("defaultBranch is missing from branches")
@@ -178,12 +190,17 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
     in_progress = False
     internal_heads: set[str] = set()
     for pull in pulls:
-        activity = parse_utc(pull["lastActivityAt"], f"PR#{pull['number']}.lastActivityAt")
-        age = _age_seconds(activity, observed_at)
+        activity_ns = _parse_utc_ns(
+            pull["lastActivityAt"], f"PR#{pull['number']}.lastActivityAt"
+        )
+        age_ns = observed_ns - activity_ns
         head_repository = pull["headRepository"]
-        if isinstance(head_repository, str) and head_repository.lower() == repository.lower():
-            internal_heads.add(str(pull["headRef"]))
-        if age < stale_window:
+        if (
+            isinstance(head_repository, str)
+            and head_repository.lower() == repository.lower()
+        ):
+            internal_heads.add(pull["headRef"])
+        if age_ns < window_ns:
             in_progress = True
             continue
         findings.append(
@@ -200,7 +217,7 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
                     "number": pull["number"],
                     "headRef": pull["headRef"],
                     "lastActivityAt": pull["lastActivityAt"],
-                    "ageSeconds": int(age),
+                    "ageSeconds": int(age_ns / 1_000_000_000),
                 },
             )
         )
@@ -209,9 +226,11 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
         name = branch["name"]
         if name == default_branch or name in internal_heads:
             continue
-        committed = parse_utc(branch["committedAt"], f"branch {name}.committedAt")
-        age = _age_seconds(committed, observed_at)
-        if age < stale_window:
+        committed_ns = _parse_utc_ns(
+            branch["committedAt"], f"branch {name}.committedAt"
+        )
+        age_ns = observed_ns - committed_ns
+        if age_ns < window_ns:
             in_progress = True
             continue
         findings.append(
@@ -227,14 +246,18 @@ def evaluate(snapshot: dict[str, Any]) -> HygieneVerdict:
                     "repository": repository,
                     "branch": name,
                     "committedAt": branch["committedAt"],
-                    "ageSeconds": int(age),
+                    "ageSeconds": int(age_ns / 1_000_000_000),
                 },
             )
         )
 
     if findings:
         status = "stale"
-    elif in_progress or pulls or any(branch["name"] != default_branch for branch in branches):
+    elif (
+        in_progress
+        or pulls
+        or any(branch["name"] != default_branch for branch in branches)
+    ):
         status = "in_progress"
     else:
         status = "healthy"
@@ -266,7 +289,8 @@ def _snapshot(
         "staleWindowSeconds": stale_window_seconds,
         "observedAt": observed_at,
         "openPullRequests": pulls or [],
-        "branches": branches or [{"name": "main", "committedAt": "2026-08-15T10:00:00Z"}],
+        "branches": branches
+        or [{"name": "main", "committedAt": "2026-08-15T10:00:00Z"}],
     }
 
 
@@ -297,7 +321,10 @@ def self_test() -> dict[str, Any]:
             ],
             branches=[
                 {"name": "main", "committedAt": "2026-08-15T10:00:00Z"},
-                {"name": "ticket/004-repo-hygiene", "committedAt": "2026-08-15T16:50:00Z"},
+                {
+                    "name": "ticket/004-repo-hygiene",
+                    "committedAt": "2026-08-15T16:50:00Z",
+                },
             ],
         )
     )
@@ -322,7 +349,9 @@ def self_test() -> dict[str, Any]:
             ],
         )
     )
-    if stale_pr.status != "stale" or [item.code for item in stale_pr.findings] != ["REPO-HYGIENE-STALE-PR"]:
+    if stale_pr.status != "stale" or [item.code for item in stale_pr.findings] != [
+        "REPO-HYGIENE-STALE-PR"
+    ]:
         raise AssertionError("stale PR must emit REPO-HYGIENE-STALE-PR")
 
     stale_branch = evaluate(
@@ -335,14 +364,11 @@ def self_test() -> dict[str, Any]:
             ],
         )
     )
-    if stale_branch.status != "stale" or [item.code for item in stale_branch.findings] != [
-        "REPO-HYGIENE-STALE-BRANCH"
-    ]:
+    if stale_branch.status != "stale" or [
+        item.code for item in stale_branch.findings
+    ] != ["REPO-HYGIENE-STALE-BRANCH"]:
         raise AssertionError("stale extra branch must emit REPO-HYGIENE-STALE-BRANCH")
 
-    # Every case above emits at most one finding, so `sorted` never compares a
-    # pair and a broken order stays invisible. A repository with two stale pull
-    # requests is both the common real shape and the one that exposes it.
     two_stale_pulls = [
         {
             "number": 9,
@@ -381,7 +407,9 @@ def self_test() -> dict[str, Any]:
         )
     )
     if reversed_input.as_dict() != two_stale.as_dict():
-        raise AssertionError("one snapshot must yield one verdict regardless of input order")
+        raise AssertionError(
+            "one snapshot must yield one verdict regardless of input order"
+        )
 
     return {
         "schema": "wellmanifest.git-lifecycle/repo-hygiene-conformance/v1",
@@ -396,12 +424,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--snapshot", help="Evaluate a snapshot JSON document.")
     args = parser.parse_args(argv)
     if args.all:
-        print(json.dumps(self_test(), indent=2, sort_keys=True))
+        print(json.dumps(self_test(), indent=2, sort_keys=True, allow_nan=False))
         return 0
     if args.snapshot:
-        with open(args.snapshot, encoding="utf-8") as handle:
-            verdict = evaluate(json.load(handle))
-        print(json.dumps(verdict.as_dict(), indent=2, sort_keys=True))
+        verdict = evaluate(load_strict_json_file(args.snapshot, HygieneError))
+        print(json.dumps(verdict.as_dict(), indent=2, sort_keys=True, allow_nan=False))
         return 0 if verdict.status != "stale" else 1
     parser.error("pass --all or --snapshot")
     return 2
