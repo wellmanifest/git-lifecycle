@@ -1,0 +1,97 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-021",
+  "summary": "Add multi-criteria workspace cleanup standard for non-LLM and LLM-assisted heuristics",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-021/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "docs/README.md",
+    "docs/information/workspace-cleanup-standard.md",
+    "standard/conformance.py",
+    "standard/workspace-cleanup-policy.schema.json",
+    "standard/workspace_cleanup.py",
+    "standard/workspace_cleanup_fixtures.py",
+    "standard/workspace_cleanup_llm.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "81a8c3d98d8d57486184516fe103fea0cacd689f",
+    "targetBranch": "main",
+    "outcome": "Define closed multi-criteria workspace cleanup schema and dependency-free Python 3.12 stdlib evaluator supporting deterministic non-LLM scoring/hard-veto protection and bounded LLM-assisted heuristic advice validation, wired into conformance and documented under wellmanifest/docs.",
+    "nonGoals": [
+      "Perform filesystem mutations or execute cleanup deletions from the standard module",
+      "Modify pinned git-lifecycle JSON Schemas, GBNF grammar, or .lifecycle profiles"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 30,
+    "budgets": {
+      "maxImplementationFiles": 7,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Reuse shared descriptor-safe JSON loading and RFC 3339/owner-repo primitives from standard/git_primitives.py while isolating cleanup contracts in standard/workspace-cleanup-policy.schema.json and standard/workspace_cleanup.py (< 500 lines, zero third-party deps).",
+      "components": [
+        {
+          "name": "standard",
+          "paths": [
+            "standard/conformance.py",
+            "standard/workspace-cleanup-policy.schema.json",
+            "standard/workspace_cleanup.py",
+            "standard/workspace_cleanup_fixtures.py",
+            "standard/workspace_cleanup_llm.py"
+          ]
+        },
+        {
+          "name": "docs",
+          "paths": [
+            "docs/README.md",
+            "docs/information/workspace-cleanup-standard.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [
+        "Add workspaceCleanup self-test section to standard/conformance.py output"
+      ],
+      "dataChanges": [
+        "Add closed Draft 2020-12 schema standard/workspace-cleanup-policy.schema.json"
+      ],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert standard/conformance.py, docs/README.md, and remove standard/workspace* and docs/information/workspace-cleanup-standard.md."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 -B standard/conformance.py --all",
+          "python3 -B standard/initial_ref_conformance.py --all",
+          "python3 -B standard/workspace_cleanup.py --all",
+          "ruff check --no-cache standard/workspace_cleanup.py standard/conformance.py",
+          "./project/governance-check.sh --base origin/main --head HEAD"
+        ],
+        "evidence": "project/ticket-021/README.md"
+      }
+    ]
+  }
+}
