@@ -13,6 +13,9 @@ from typing import Any
 from git_primitives import parse_rfc3339_ns, walk_json_tree
 
 SCHEMA_FILE = Path(__file__).resolve().with_name("workspace-cleanup-policy.schema.json")
+_HARD_PROTECT_VETOES = frozenset(
+    {"CLEAN-TRACK-001", "CLEAN-PROC-001", "CLEAN-RECOVERY-001", "CLEAN-LEASE-001"}
+)
 
 
 class CleanupError(ValueError):
@@ -68,8 +71,26 @@ def build_llm_brief(
     evals: list[dict[str, Any]],
     rt_flags: tuple[str, ...],
     max_cands: int = 200,
+    *,
+    profile_id: str = "balanced",
 ) -> dict[str, Any]:
     by_id = {c["candidateId"]: c for c in snapshot["candidates"]}
+    triage_queue = [
+        ev["candidateId"]
+        for ev in evals
+        if (
+            ev["verdict"] in {"QUARANTINE_AND_ASK", "ARCHIVE_BUNDLE_THEN_DELETE"}
+            or ev["safetyTier"] in {"T1_VERIFY", "T2_ARCHIVE_FIRST"}
+            or "CLEAN-CONFLICT-001" in ev["vetoReasons"]
+        )
+        and not (_HARD_PROTECT_VETOES & set(ev["vetoReasons"]))
+    ]
+    triage_set = set(triage_queue)
+    ordered = (
+        sorted(evals, key=lambda e: 0 if e["candidateId"] in triage_set else 1)
+        if profile_id == "llm_triage_focus"
+        else evals
+    )
     items = [
         {
             "candidateId": ev["candidateId"],
@@ -84,16 +105,18 @@ def build_llm_brief(
                 by_id[ev["candidateId"]], rt_flags
             ),
         }
-        for ev in evals[:max_cands]
+        for ev in ordered[:max_cands]
     ]
     return {
         "schema": "wellmanifest.git-lifecycle/workspace-cleanup-llm-brief/v1",
         "grantsCleanupAuthority": False,
+        "profileId": profile_id,
         "repository": snapshot["repository"],
         "observedAt": snapshot["observedAt"],
         "diskContext": snapshot["diskContext"],
+        "triageQueue": triage_queue,
         "hardConstraints": [
-            "Never override CLEAN-TRACK/PROC/RECOVERY/LEASE/UNKNOWN-001 vetoes",
+            "Never override CLEAN-TRACK/PROC/RECOVERY/LEASE/UNKNOWN/CONFLICT-001 vetoes",
             "Never lower safetyTier or escalate verdict destructiveness",
             "Every adviceItem requires >= 1 grounded evidenceRef",
         ],
@@ -184,4 +207,9 @@ def validate_llm_advice_doc(
             and verdict_risk[sv] <= verdict_risk[det["verdict"]],
             f"CLEAN-LLM-VETO-001: cannot downgrade safety on {cid}",
         )
-    return {"schema": advice_schema, "ok": True, "validatedItems": sorted(seen)}
+    return {
+        "schema": advice_schema,
+        "heuristicMode": "llm_assisted",
+        "ok": True,
+        "validatedItems": sorted(seen),
+    }

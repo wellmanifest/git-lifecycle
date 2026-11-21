@@ -17,6 +17,16 @@
       "type": "string",
       "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
     },
+    "profileId": {
+      "type": "string",
+      "enum": [
+        "balanced",
+        "disk_emergency",
+        "git_hygiene",
+        "dedupe_conservative",
+        "llm_triage_focus"
+      ]
+    },
     "artifactKind": {
       "type": "string",
       "enum": [
@@ -231,6 +241,7 @@
         "verdict",
         "score",
         "vetoReasons",
+        "ruleTrace",
         "criteriaScores",
         "findings",
         "reclaimableBytes"
@@ -244,6 +255,12 @@
         "score": { "type": "number", "minimum": 0, "maximum": 100 },
         "vetoReasons": {
           "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "ruleTrace": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
           "items": { "type": "string", "minLength": 1, "maxLength": 128 }
         },
         "criteriaScores": { "$ref": "#/$defs/criteriaScores" },
@@ -302,6 +319,7 @@
         "kind": { "const": "workspace-cleanup-snapshot" },
         "repository": { "$ref": "#/$defs/repository" },
         "observedAt": { "$ref": "#/$defs/rfc3339Utc" },
+        "profileId": { "$ref": "#/$defs/profileId" },
         "policy": { "$ref": "#/$defs/policyConfig" },
         "diskContext": { "$ref": "#/$defs/diskContext" },
         "candidates": {
@@ -321,6 +339,8 @@
         "grantsCleanupAuthority",
         "repository",
         "observedAt",
+        "profileId",
+        "heuristicMode",
         "diskContext",
         "evaluations",
         "llmBrief"
@@ -333,6 +353,11 @@
         "grantsCleanupAuthority": { "const": false },
         "repository": { "$ref": "#/$defs/repository" },
         "observedAt": { "$ref": "#/$defs/rfc3339Utc" },
+        "profileId": { "$ref": "#/$defs/profileId" },
+        "heuristicMode": {
+          "type": "string",
+          "enum": ["non_llm", "llm_assisted"]
+        },
         "diskContext": { "$ref": "#/$defs/diskContext" },
         "evaluations": {
           "type": "array",
