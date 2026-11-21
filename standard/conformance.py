@@ -459,6 +459,7 @@ def run_all() -> dict[str, object]:
     ]
     rejected = [expect_rejected(n, v, b, m) for n, v, b, m in cases]
     import repo_hygiene
+    import workspace_cleanup
 
     return {
         "schema": "wellmanifest.git-lifecycle-conformance/v1",
@@ -468,6 +469,7 @@ def run_all() -> dict[str, object]:
         "schemaDigest": "sha256:" + SCHEMA_DIGEST,
         "grammarDigest": "sha256:" + GRAMMAR_DIGEST,
         "repoHygiene": repo_hygiene.self_test(),
+        "workspaceCleanup": workspace_cleanup.self_test(),
     }
 
 
