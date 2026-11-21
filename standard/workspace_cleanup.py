@@ -51,24 +51,64 @@ VERDICT_RISK = {
     "DELETE_NOW": 5,
 }
 PRESSURE_MULTS = {"normal": 1.0, "elevated": 1.15, "critical": 1.35, "emergency": 1.5}
-DEFAULT_POLICY: dict[str, int] = {
-    "reclaimWeight": 35,
-    "ageWeight": 20,
-    "reversibilityWeight": 25,
-    "safetyWeight": 20,
-    "staleAgeSeconds": 86_400,
-    "reclaimReferenceBytes": 1_073_741_824,
-    "maxCandidates": 200,
+CRITERIA_PROFILES: dict[str, dict[str, int]] = {
+    "balanced": {
+        "reclaimWeight": 35,
+        "ageWeight": 20,
+        "reversibilityWeight": 25,
+        "safetyWeight": 20,
+        "staleAgeSeconds": 86_400,
+        "reclaimReferenceBytes": 1_073_741_824,
+        "maxCandidates": 200,
+    },
+    "disk_emergency": {
+        "reclaimWeight": 60,
+        "ageWeight": 10,
+        "reversibilityWeight": 20,
+        "safetyWeight": 10,
+        "staleAgeSeconds": 21_600,
+        "reclaimReferenceBytes": 268_435_456,
+        "maxCandidates": 200,
+    },
+    "git_hygiene": {
+        "reclaimWeight": 20,
+        "ageWeight": 40,
+        "reversibilityWeight": 20,
+        "safetyWeight": 20,
+        "staleAgeSeconds": 43_200,
+        "reclaimReferenceBytes": 1_073_741_824,
+        "maxCandidates": 200,
+    },
+    "dedupe_conservative": {
+        "reclaimWeight": 25,
+        "ageWeight": 15,
+        "reversibilityWeight": 25,
+        "safetyWeight": 35,
+        "staleAgeSeconds": 259_200,
+        "reclaimReferenceBytes": 536_870_912,
+        "maxCandidates": 200,
+    },
+    "llm_triage_focus": {
+        "reclaimWeight": 30,
+        "ageWeight": 20,
+        "reversibilityWeight": 25,
+        "safetyWeight": 25,
+        "staleAgeSeconds": 86_400,
+        "reclaimReferenceBytes": 1_073_741_824,
+        "maxCandidates": 100,
+    },
 }
+DEFAULT_POLICY = CRITERIA_PROFILES["balanced"]
+_SOFT_VETO_CODES = frozenset({"CLEAN-UNKNOWN-001", "CLEAN-CONFLICT-001"})
 
 
 def _finding(c: str, s: str, m: str, r: str, e: dict[str, Any]) -> dict[str, Any]:
     return {"code": c, "severity": s, "message": m, "remediation": r, "evidence": e}
 
 
-def _validate_policy(raw: Any) -> dict[str, int]:
+def _validate_policy(raw: Any, profile_id: str = "balanced") -> dict[str, int]:
     if raw is None:
-        return dict(DEFAULT_POLICY)
+        return dict(CRITERIA_PROFILES[profile_id])
     pol = req_keys(raw, set(DEFAULT_POLICY), "policy")
     limits = {
         "reclaimWeight": (0, 100),
@@ -119,17 +159,22 @@ def _validate_candidate(raw: Any, idx: int) -> dict[str, Any]:
 
 def validate_snapshot(
     snapshot: dict[str, Any],
-) -> tuple[dict[str, int], dict[str, Any]]:
+) -> tuple[str, dict[str, int], dict[str, Any]]:
     walk_json_tree(snapshot, CleanupError)
     req = set(_DEFS["snapshotDocument"]["required"])
     chk(
-        isinstance(snapshot, dict) and set(snapshot) - {"policy"} == req,
+        isinstance(snapshot, dict) and set(snapshot) - {"policy", "profileId"} == req,
         "snapshot schema mismatch",
     )
     chk(snapshot["schema"] == SNAPSHOT_SCHEMA, "snapshot schema invalid")
     chk(snapshot["kind"] == "workspace-cleanup-snapshot", "snapshot kind invalid")
     validate_owner_repo(snapshot["repository"], "repository", CleanupError)
     parse_rfc3339_ns(snapshot["observedAt"], "observedAt", CleanupError, require_z=True)
+    profile_id = snapshot.get("profileId", "balanced")
+    chk(
+        isinstance(profile_id, str) and profile_id in CRITERIA_PROFILES,
+        "snapshot profileId invalid",
+    )
 
     disk = req_keys(
         snapshot["diskContext"], set(_DEFS["diskContext"]["required"]), "diskContext"
@@ -143,7 +188,7 @@ def validate_snapshot(
     )
     chk(disk["pressureTier"] in PRESSURE_MULTS, "pressureTier invalid")
 
-    policy = _validate_policy(snapshot.get("policy"))
+    policy = _validate_policy(snapshot.get("policy"), profile_id)
     raw_cands = snapshot["candidates"]
     chk(
         isinstance(raw_cands, list) and 1 <= len(raw_cands) <= 10_000,
@@ -154,19 +199,20 @@ def validate_snapshot(
         cid = _validate_candidate(raw, idx)["candidateId"]
         chk(cid not in seen, f"duplicate candidateId: {cid}")
         seen.add(cid)
-    return policy, disk
+    return profile_id, policy, disk
 
 
 def _apply_hard_vetoes(cand: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
     vetoes: list[str] = []
     findings: list[dict[str, Any]] = []
+    git = cand["git"]
     active_rt = [flag for flag in RT_FLAGS if cand["runtime"][flag]]
 
     def add(code: str, msg: str, rem: str, ev: dict[str, Any]) -> None:
         vetoes.append(code)
         findings.append(_finding(code, "veto", msg, rem, ev))
 
-    if cand["trackedFilesCount"] > 0 or cand["git"]["isGitTracked"]:
+    if cand["trackedFilesCount"] > 0 or git["isGitTracked"]:
         add(
             "CLEAN-TRACK-001",
             "Git-tracked content protected.",
@@ -200,6 +246,22 @@ def _apply_hard_vetoes(cand: dict[str, Any]) -> tuple[list[str], list[dict[str, 
             "Unknown artifact quarantined.",
             "Classify first.",
             {"kind": "unknown"},
+        )
+    conflict = (
+        cand["artifactKind"] == "worktree_merged" and not git["mergedIntoDefault"]
+    ) or (
+        cand["artifactKind"] == "clone_duplicate"
+        and git["canonicalCopyPath"] == cand["path"]
+    )
+    if conflict:
+        add(
+            "CLEAN-CONFLICT-001",
+            "Conflicting artifact label and Git/path evidence.",
+            "Re-verify merged ancestry and canonical copy path.",
+            {
+                "kind": cand["artifactKind"],
+                "mergedIntoDefault": git["mergedIntoDefault"],
+            },
         )
     return vetoes, findings
 
@@ -243,15 +305,19 @@ def _classify_no_veto(
 
 
 def evaluate_candidate(
-    cand: dict[str, Any], disk: dict[str, Any], policy: dict[str, int] | None = None
+    cand: dict[str, Any],
+    disk: dict[str, Any],
+    policy: dict[str, int] | None = None,
+    *,
+    profile_id: str = "balanced",
 ) -> dict[str, Any]:
-    pol = policy if policy is not None else DEFAULT_POLICY
+    pol = policy if policy is not None else CRITERIA_PROFILES[profile_id]
     vetoes, findings = _apply_hard_vetoes(cand)
     if vetoes:
         tier = "T3_PROTECTED"
         verdict = (
             "QUARANTINE_AND_ASK"
-            if vetoes == ["CLEAN-UNKNOWN-001"]
+            if set(vetoes) <= _SOFT_VETO_CODES
             else "HOLD_PROTECTED"
         )
         rev_s = 0.0
@@ -280,6 +346,15 @@ def evaluate_candidate(
             + blast_s * pol["safetyWeight"]
         )
         score, reclaimable = round(weighted / w_sum, 2), cand["sizeBytes"]
+    trace_vetoes = [f"veto:{v}" for v in vetoes] if vetoes else ["veto:none"]
+    rule_trace = [
+        f"profile:{profile_id}",
+        *trace_vetoes,
+        f"kind:{cand['artifactKind']}",
+        f"tier:{tier}",
+        f"verdict:{verdict}",
+        f"pressure:{disk['pressureTier']}",
+    ]
     return {
         "candidateId": cand["candidateId"],
         "path": cand["path"],
@@ -288,6 +363,7 @@ def evaluate_candidate(
         "verdict": verdict,
         "score": score,
         "vetoReasons": vetoes,
+        "ruleTrace": rule_trace,
         "criteriaScores": {
             "reclaimScore": rec_s,
             "ageScore": age_s,
@@ -299,9 +375,24 @@ def evaluate_candidate(
     }
 
 
-def evaluate_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
-    policy, disk = validate_snapshot(snapshot)
-    evals = [evaluate_candidate(c, disk, policy) for c in snapshot["candidates"]]
+def evaluate_snapshot(
+    snapshot: dict[str, Any], *, profile_id: str | None = None
+) -> dict[str, Any]:
+    snap_profile, policy, disk = validate_snapshot(snapshot)
+    if profile_id is not None:
+        chk(
+            isinstance(profile_id, str) and profile_id in CRITERIA_PROFILES,
+            "profileId invalid",
+        )
+        active_profile = profile_id
+        if "policy" not in snapshot:
+            policy = dict(CRITERIA_PROFILES[active_profile])
+    else:
+        active_profile = snap_profile
+    evals = [
+        evaluate_candidate(c, disk, policy, profile_id=active_profile)
+        for c in snapshot["candidates"]
+    ]
     evals.sort(
         key=lambda e: (-e["score"], -e["reclaimableBytes"], e["candidateId"], e["path"])
     )
@@ -311,9 +402,17 @@ def evaluate_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
         "grantsCleanupAuthority": False,
         "repository": snapshot["repository"],
         "observedAt": snapshot["observedAt"],
+        "profileId": active_profile,
+        "heuristicMode": "non_llm",
         "diskContext": disk,
         "evaluations": evals,
-        "llmBrief": build_llm_brief(snapshot, evals, RT_FLAGS, policy["maxCandidates"]),
+        "llmBrief": build_llm_brief(
+            snapshot,
+            evals,
+            RT_FLAGS,
+            policy["maxCandidates"],
+            profile_id=active_profile,
+        ),
     }
 
 
@@ -339,6 +438,11 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--all", action="store_true", help="Run closed conformance tests.")
     p.add_argument("--snapshot", help="Evaluate workspace cleanup snapshot JSON.")
+    p.add_argument(
+        "--profile",
+        choices=sorted(CRITERIA_PROFILES),
+        help="Select or override multi-criteria evaluation profile.",
+    )
     p.add_argument("--emit-llm-brief", action="store_true", help="Emit llmBrief only.")
     p.add_argument("--validate-llm-advice", help="Validate LLM advice JSON.")
     args = p.parse_args(argv)
@@ -347,7 +451,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.snapshot:
         snap = load_strict_json_file(args.snapshot, CleanupError)
-        rep = evaluate_snapshot(snap)
+        rep = evaluate_snapshot(snap, profile_id=args.profile)
         if args.validate_llm_advice:
             adv = load_strict_json_file(args.validate_llm_advice, CleanupError)
             res = validate_llm_advice(snap, adv, report=rep)

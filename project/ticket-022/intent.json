@@ -1,0 +1,94 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-022",
+  "summary": "Add multi-criteria cleanup profiles, cross-field conflict veto, and explainable non-LLM/LLM triage",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-022/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "docs/information/workspace-cleanup-standard.md",
+    "standard/workspace-cleanup-policy.schema.json",
+    "standard/workspace_cleanup.py",
+    "standard/workspace_cleanup_fixtures.py",
+    "standard/workspace_cleanup_llm.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "8a38ba3db2257baec3a2f22a621b8a0851f27eb1",
+    "targetBranch": "main",
+    "outcome": "Add five named multi-criteria cleanup profiles (balanced, disk_emergency, git_hygiene, dedupe_conservative, llm_triage_focus), add cross-field conflict veto CLEAN-CONFLICT-001 (addressing Validator #26 advisory finding), add per-candidate ruleTrace and LLM brief triageQueue ordering, and update standard documentation v2.",
+    "nonGoals": [
+      "Perform filesystem mutations or execute cleanup deletions from the standard module",
+      "Modify pinned git-lifecycle JSON Schemas, GBNF grammar, or .lifecycle profiles"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 30,
+    "budgets": {
+      "maxImplementationFiles": 5,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Extend the closed workspace-cleanup schema and modular stdlib evaluators cleanly within their < 500-line module budgets, exposing profile presets via CRITERIA_PROFILES and --profile while isolating LLM triage ordering inside standard/workspace_cleanup_llm.py.",
+      "components": [
+        {
+          "name": "standard",
+          "paths": [
+            "standard/workspace-cleanup-policy.schema.json",
+            "standard/workspace_cleanup.py",
+            "standard/workspace_cleanup_fixtures.py",
+            "standard/workspace_cleanup_llm.py"
+          ]
+        },
+        {
+          "name": "docs",
+          "paths": [
+            "docs/information/workspace-cleanup-standard.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [
+        "Extend workspace-cleanup schema and CLI with profileId, heuristicMode, ruleTrace, CLEAN-CONFLICT-001, and triageQueue"
+      ],
+      "dataChanges": [
+        "Update standard/workspace-cleanup-policy.schema.json with profileId, heuristicMode, and evaluation ruleTrace"
+      ],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert commit touching standard/workspace* and docs/information/workspace-cleanup-standard.md."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 -B standard/conformance.py --all",
+          "python3 -B standard/initial_ref_conformance.py --all",
+          "python3 -B standard/workspace_cleanup.py --all",
+          "ruff check --no-cache standard/workspace_cleanup.py standard/workspace_cleanup_llm.py standard/workspace_cleanup_fixtures.py",
+          "python3 -B -m unittest discover -s standard -p 'test_*.py' -v",
+          "./project/governance-check.sh --base origin/main --head HEAD"
+        ],
+        "evidence": "project/ticket-022/README.md"
+      }
+    ]
+  }
+}

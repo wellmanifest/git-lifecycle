@@ -3,7 +3,7 @@
   "schema": "wellmanifest.docs/document/v1",
   "id": "workspace-cleanup-standard",
   "kind": "information",
-  "version": 1,
+  "version": 2,
   "title": "Multi-criteria workspace cleanup standard (non-LLM and LLM-assisted heuristics)",
   "status": "proposed",
   "owner": "wellmanifest/git-lifecycle",
@@ -11,11 +11,12 @@
   "created": "2026-11-21",
   "updated": "2026-11-21",
   "review_after": "2027-02-21",
-  "source_revision": "81a8c3d98d8d57486184516fe103fea0cacd689f",
+  "source_revision": "8a38ba3db2257baec3a2f22a621b8a0851f27eb1",
   "affected_repositories": [
     "wellmanifest/git-lifecycle"
   ],
   "evidence": [
+    "https://github.com/wellmanifest/git-lifecycle/pull/26",
     "https://github.com/wellmanifest/git-lifecycle/blob/main/standard/workspace-cleanup-policy.schema.json",
     "https://github.com/wellmanifest/git-lifecycle/blob/main/standard/workspace_cleanup.py"
   ]
@@ -48,38 +49,40 @@ Cross-repository remediation runs belong in `subactor/docs`; this specification 
 <!-- docs:section content -->
 ## Multi-criteria model
 
-### 1. Twelve artifact classes and four safety tiers
+### 1. Twelve artifact classes, four safety tiers, and named criteria profiles
 
 Every candidate declares one `artifactKind` from 12 canonical classes: `worktree_merged`, `worktree_unmerged`, `worktree_dirty`, `build_cache`, `run_logs`, `test_artifacts`, `virtualenv_duplicate`, `virtualenv_primary`, `clone_duplicate`, `bundle_archived_tree`, `subactor_recovery`, and `unknown`.
 
-Deterministic classification assigns one of four safety tiers and six verdicts:
+Deterministic classification assigns one of four safety tiers (`T0_SAFE`, `T1_VERIFY`, `T2_ARCHIVE_FIRST`, `T3_PROTECTED`) and six verdicts (`DELETE_NOW`, `PRUNE_GIT_WORKTREE`, `ARCHIVE_BUNDLE_THEN_DELETE`, `DEDUPE_KEEP_CANONICAL`, `QUARANTINE_AND_ASK`, `HOLD_PROTECTED`), plus an ordered audit trail (`ruleTrace`).
 
-- `T0_SAFE`: `DELETE_NOW` (clean untracked caches/logs/test artifacts or verified bundles), `PRUNE_GIT_WORKTREE` (clean merged worktree), `DEDUPE_KEEP_CANONICAL` (duplicate virtualenv with canonical copy).
-- `T1_VERIFY`: `DEDUPE_KEEP_CANONICAL` (clean duplicate clone with canonical copy), `PRUNE_GIT_WORKTREE` (unmerged worktree backed by a verified Git bundle), `QUARANTINE_AND_ASK` (unmerged clean worktree without bundle).
-- `T2_ARCHIVE_FIRST`: `ARCHIVE_BUNDLE_THEN_DELETE` (unpushed commits or unbundled archived trees).
-- `T3_PROTECTED`: `HOLD_PROTECTED` or `QUARANTINE_AND_ASK` (vetoed, dirty, primary virtualenv, or unknown).
+Five named criteria profiles adjust non-vetoed ranking priorities without ever weakening safety vetoes:
 
-### 2. Five non-overridable hard vetoes
+- `balanced`: default balanced weights (`reclaim=35, age=20, reversibility=25, safety=20`, stale 24h, ref 1 GiB).
+- `disk_emergency`: maximizes urgent storage reclaim (`reclaim=60`, stale 6h, ref 256 MiB) for `LIM-STORAGE-001`.
+- `git_hygiene`: prioritizes aging stale branches/worktrees (`age=40`, stale 12h).
+- `dedupe_conservative`: emphasizes safety & reversibility (`safety=35, reversibility=25`, stale 72h).
+- `llm_triage_focus`: keeps `maxCandidates=100` and sorts `llmBrief.candidates` so ambiguous `triageQueue` items appear first.
 
-Before any weight, disk-pressure multiplier, or LLM suggestion applies, five hard vetoes unconditionally force `T3_PROTECTED` (`score = 0.0`, `reclaimableBytes = 0`):
+### 2. Six non-overridable hard vetoes
+
+Before any weight, profile, disk-pressure multiplier, or LLM suggestion applies, six hard vetoes force `T3_PROTECTED` (`score = 0.0`, `reclaimableBytes = 0`):
 
 1. `CLEAN-TRACK-001`: `trackedFilesCount > 0` or `git.isGitTracked = true`.
 2. `CLEAN-PROC-001`: Any live runtime signal (`openFileHandles`, `activeDaemon`, `activeIdeSession`, `activeMountOrSymlinkTarget`).
 3. `CLEAN-RECOVERY-001`: `artifactKind == "subactor_recovery"`.
 4. `CLEAN-LEASE-001`: Active lease state in `{claimed, editing, validating, publication_frozen}`.
-5. `CLEAN-UNKNOWN-001`: `artifactKind == "unknown"` (assigned `QUARANTINE_AND_ASK`).
+5. `CLEAN-UNKNOWN-001`: `artifactKind == "unknown"` (`QUARANTINE_AND_ASK`).
+6. `CLEAN-CONFLICT-001`: Conflicting label vs Git/path evidence (`worktree_merged` with `mergedIntoDefault = false`, or `clone_duplicate` where `canonicalCopyPath == path`), quarantined as `QUARANTINE_AND_ASK`.
 
-### 3. Non-LLM deterministic scoring
+### 3. Non-LLM vs bounded LLM-assisted execution
 
-When no hard veto or `T3_PROTECTED` gate applies, `evaluate_candidate` computes weighted criteria scores in `[0, 100]` using reclaim size normalized by `diskContext.pressureTier` (`normal` 1.0, `elevated` 1.15, `critical` 1.35, `emergency` 1.5), age staleness, artifact reversibility, and blast-radius safety. Evaluations sort deterministically regardless of candidate input ordering.
-
-### 4. Bounded LLM-assisted heuristic boundary
-
-For ambiguous (`T1_VERIFY`/`QUARANTINE_AND_ASK`) or cross-repository prioritization, callers extract a compact, secret-free `llmBrief` (`build_llm_brief`) listing hard constraints and grounded `availableEvidenceRefs`. Optional LLM output (`workspace-cleanup-llm-advice/v1`) MUST pass `validate_llm_advice`:
-
-- `CLEAN-LLM-EVIDENCE-001`: Every advice item must cite >= 1 valid snapshot-grounded ref (`snapshot:`, `git:`, `lease:`, `runtime:`, `bundle:`).
-- `CLEAN-LLM-VETO-001`: LLM advice may escalate caution (`T0_SAFE` -> `T3_PROTECTED`), NEVER override a hard veto or downgrade `safetyTier` / escalate verdict destructiveness.
-- Authority lock: `grantsCleanupAuthority: false` and `advisoryOnly: true` are enforced strictly.
+- **Without LLM (`heuristicMode: "non_llm"`)**:
+  `python3 standard/workspace_cleanup.py --snapshot snap.json --profile disk_emergency`
+- **With LLM (`heuristicMode: "llm_assisted"`)**:
+  1. Emit compact brief prioritizing `triageQueue`:
+     `python3 standard/workspace_cleanup.py --snapshot snap.json --profile llm_triage_focus --emit-llm-brief`
+  2. Validate model output against snapshot & deterministic vetoes (`CLEAN-LLM-EVIDENCE-001`, `CLEAN-LLM-VETO-001`, `grantsCleanupAuthority: false`, `advisoryOnly: true`):
+     `python3 standard/workspace_cleanup.py --snapshot snap.json --validate-llm-advice advice.json`
 
 <!-- docs:section limitations -->
 ## Limitations
