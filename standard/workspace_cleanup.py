@@ -430,8 +430,11 @@ def validate_llm_advice(
 
 def self_test() -> dict[str, Any]:
     import workspace_cleanup_fixtures
+    import workspace_cleanup_scan
 
-    return workspace_cleanup_fixtures.run_self_test()
+    report = workspace_cleanup_fixtures.run_self_test()
+    report["liveScanner"] = workspace_cleanup_scan.self_test()
+    return report
 
 
 def main(argv: list[str] | None = None) -> int:

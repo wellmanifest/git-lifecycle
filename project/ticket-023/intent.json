@@ -1,0 +1,91 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-023",
+  "summary": "Add read-only live workspace cleanup scanner for non-LLM and LLM-assisted multi-criteria triage",
+  "workstream": "integration",
+  "classification": {
+    "kind": "FEATURE",
+    "priority": "P1",
+    "origin": "requested"
+  },
+  "allowedPaths": [
+    "project/ticket-023/**",
+    "TODO.md",
+    "project/TICKETS.md",
+    "docs/information/workspace-cleanup-standard.md",
+    "standard/workspace_cleanup.py",
+    "standard/workspace_cleanup_scan.py",
+    "standard/workspace_cleanup_scan_fixtures.py"
+  ],
+  "forbiddenPaths": [
+    "project/ticket-*/user-*.md"
+  ],
+  "stacks": [],
+  "dependsOn": [],
+  "conflictsWith": [],
+  "integrationTicket": null,
+  "delivery": {
+    "acceptedBaseSha": "66cc7c40883d57e4050286ff7cdb1dae4be872bd",
+    "targetBranch": "main",
+    "outcome": "Implement standard/workspace_cleanup_scan.py (dependency-free Python 3.12 read-only live filesystem/Git/lease/process scanner emitting workspace-cleanup-snapshot/v1 and evaluating all 5 criteria profiles), wire closed end-to-end temporary-workspace conformance tests via standard/workspace_cleanup_scan_fixtures.py into standard/workspace_cleanup.py and standard/conformance.py, and document live CLI triage in v3 of docs/information/workspace-cleanup-standard.md.",
+    "nonGoals": [
+      "Delete files, mutate Git repositories, or alter leases from workspace_cleanup_scan.py",
+      "Modify pinned git-lifecycle JSON Schemas, GBNF grammar, or .lifecycle profiles"
+    ],
+    "complexity": "M",
+    "estimatedMinutes": 25,
+    "budgets": {
+      "maxImplementationFiles": 4,
+      "maxAffectedComponents": 2,
+      "maxPublicInterfaceChanges": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Keep the live observation probe in dedicated stdlib module standard/workspace_cleanup_scan.py (< 500 lines) and isolated fixture tests in standard/workspace_cleanup_scan_fixtures.py (< 500 lines), reusing workspace_cleanup.py evaluators and invoking live tests from workspace_cleanup.self_test().",
+      "components": [
+        {
+          "name": "standard",
+          "paths": [
+            "standard/workspace_cleanup.py",
+            "standard/workspace_cleanup_scan.py",
+            "standard/workspace_cleanup_scan_fixtures.py"
+          ]
+        },
+        {
+          "name": "docs",
+          "paths": [
+            "docs/information/workspace-cleanup-standard.md"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [
+        "Add read-only CLI and library APIs scan_workspace and evaluate_live_workspace in standard/workspace_cleanup_scan.py"
+      ],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert commit adding standard/workspace_cleanup_scan*.py and restore v2 of docs/information/workspace-cleanup-standard.md."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python3 -B standard/conformance.py --all",
+          "python3 -B standard/initial_ref_conformance.py --all",
+          "python3 -B standard/workspace_cleanup.py --all",
+          "python3 -B standard/workspace_cleanup_scan.py --all",
+          "ruff check --no-cache standard/workspace_cleanup.py standard/workspace_cleanup_llm.py standard/workspace_cleanup_fixtures.py standard/workspace_cleanup_scan.py standard/workspace_cleanup_scan_fixtures.py",
+          "python3 -B -m unittest discover -s standard -p 'test_*.py' -v",
+          "./project/governance-check.sh --base origin/main --head HEAD"
+        ],
+        "evidence": "project/ticket-023/README.md"
+      }
+    ]
+  }
+}
